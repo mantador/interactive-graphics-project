@@ -1,13 +1,15 @@
-import { createCProgram } from "./utils";
+import { mat4 } from "gl-matrix";
+import { createCProgram, resizeCanvasToDisplaySize } from "./utils";
 
 const vs = `
 attribute vec3 p;
-// uniform mat4  mvp;
-uniform vec3  center;
-uniform float radius;
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform mat4 uNormalMatrix;
 
 varying vec3  pos;
 varying vec3 normal;
+
 void main()
 {
 	pos = p*radius + center;
@@ -40,7 +42,7 @@ void main()
 // vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
 // float diffuse = max(dot(normal, lightDir), 0.0);
 // vec3 color = vec3(0, 0.5, 0) * (diffuse + 0.2);
-gl_FragColor = vec4(0, 0.5, 0, 1.0);}
+gl_FragColor = vec4(0.4, 0.5, 0.3, 1.0);}
 `;
 
 function main() {
@@ -54,19 +56,32 @@ function main() {
     return;
   }
 
+  resizeCanvasToDisplaySize(canvas);
+
   const program = createCProgram(gl, vs, fs);
   gl.useProgram(program);
 
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const res = ch / cw;
 
-  // Bind the spheres centers
-  const positions = new Float32Array([
-    0.1, 0.2, -0.2, -1, 1, 1, -1, -0.5, 0, 0, 0.4, -0.8,
-  ]);
+  const s = new Sphere({
+    center: { x: 0.1, y: 0.3, z: 0 },
+    radius: 0.1,
+    resolution: res,
+  });
+  const spheres = [];
+
+  //this uses the code for 3d spheres
+  const sphere = createSphere(0.5, 50, 50);
+  console.log(s.verteces);
+
+  let pos = s.verteces;
 
   const pBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, pBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
 
   const pLoc = gl.getAttribLocation(program, "p");
   gl.enableVertexAttribArray(pLoc);
@@ -81,11 +96,94 @@ function main() {
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  requestAnimationFrame(() => {
-    console.log("AAAAAAAAAA");
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-  });
-  // gl.drawElements(gl.TRIANGLES, positions.length, gl.UNSIGNED_SHORT, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, pos.length / 2);
+}
+
+function createSphere(radius, latitudeBands, longitudeBands) {
+  const positions: Array<number> = [];
+  const normals: Array<number> = [];
+  const indices: Array<number> = [];
+
+  for (let lat = 0; lat <= latitudeBands; lat++) {
+    const theta = (lat * Math.PI) / latitudeBands;
+    const sinTheta = Math.sin(theta);
+    const cosTheta = Math.cos(theta);
+
+    for (let long = 0; long <= longitudeBands; long++) {
+      const phi = (long * 2 * Math.PI) / longitudeBands;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+
+      const x = cosPhi * sinTheta;
+      const y = cosTheta;
+      const z = sinPhi * sinTheta;
+
+      positions.push(radius * x, radius * y, radius * z);
+      normals.push(x, y, z);
+
+      if (lat < latitudeBands && long < longitudeBands) {
+        const first = lat * (longitudeBands + 1) + long;
+        const second = first + longitudeBands + 1;
+        indices.push(first, second, first + 1, second, second + 1, first + 1);
+      }
+    }
+  }
+
+  return { positions, normals, indices };
 }
 
 window.addEventListener("load", () => main());
+
+interface Point {
+  x: number;
+  y: number;
+  z: number;
+}
+
+class Sphere {
+  verteces: Array<number> = [];
+  static DIV = 50;
+  static PI2 = Math.PI * 2;
+  static DRAD = Sphere.PI2 / Sphere.DIV;
+
+  constructor(
+    private conf: { center: Point; radius: number; resolution: number },
+  ) {
+    this.verteces = [];
+    this.render();
+  }
+
+  render() {
+    for (let i = 0; i < Sphere.DIV; i++) {
+      this.verteces.push(this.conf.center.x, this.conf.center.y);
+
+      const angle = (i * Sphere.DRAD) % Sphere.PI2;
+      const sx1 = Math.sin(angle);
+      const cx1 = Math.cos(angle);
+      const v1x =
+        this.conf.center.x + this.conf.radius * cx1 * this.conf.resolution;
+      const v1y = this.conf.center.y + this.conf.radius * sx1;
+      this.verteces.push(v1x, v1y);
+
+      const angle2 = (angle + Sphere.DRAD) % Sphere.PI2;
+      const sx2 = Math.sin(angle2);
+      const cx2 = Math.cos(angle2);
+      const v2x =
+        this.conf.center.x + this.conf.radius * cx2 * this.conf.resolution;
+      const v2y = this.conf.center.y + this.conf.radius * sx2;
+      this.verteces.push(v2x, v2y);
+    }
+  }
+
+  /**
+   * @deprecated This method was used for early testing only
+   *
+   * @param dp the position change
+   */
+  move(dp: Point) {
+    this.conf.center.x += dp.x;
+    this.conf.center.y += dp.y;
+    this.conf.center.z += dp.z;
+    this.render();
+  }
+}
