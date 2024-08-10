@@ -9,6 +9,8 @@ uniform mat4 uNormalMatrix;
 
 varying vec3  pos;
 varying vec3 normal;
+uniform float radius;
+uniform vec3 center;
 
 void main()
 {

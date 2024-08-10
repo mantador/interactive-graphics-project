@@ -11,6 +11,9 @@ importers:
       esbuild:
         specifier: ^0.23.0
         version: 0.23.0
+      gl-matrix:
+        specifier: ^3.4.3
+        version: 3.4.3
       typescript-language-server:
         specifier: ^4.3.3
         version: 4.3.3
@@ -166,6 +169,9 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  gl-matrix@3.4.3:
+    resolution: {integrity: sha512-wcCp8vu8FT22BnvKVPjXa/ICBWRq/zjFfdofZy1WSpQZpphblv12/bOQLBC1rMM7SGOFS9ltVmKOHil5+Ml7gA==}
+
   typescript-language-server@4.3.3:
     resolution: {integrity: sha512-3QLj57Ru9S6zv10sa4z1pA3TIR1Rdkd04Ke0EszbO4fx5PLdlYhlC/PMxwlyxls9wrZs7wPCME1Ru0s1Gabz4Q==}
     engines: {node: '>=18'}
@@ -285,6 +291,8 @@ snapshots:
       '@esbuild/win32-arm64': 0.23.0
       '@esbuild/win32-ia32': 0.23.0
       '@esbuild/win32-x64': 0.23.0
+
+  gl-matrix@3.4.3: {}
 
   typescript-language-server@4.3.3:
     dependencies:
