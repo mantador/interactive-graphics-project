@@ -14,9 +14,8 @@ uniform vec3 center;
 
 void main()
 {
-	pos = p*radius + center;
+	pos = p*radius;
 	gl_Position = vec4(p,1);
-  // gl_Position = mvp * vec4(pos,1);
 	normal = normalize(p);
 }
   `;
@@ -73,10 +72,8 @@ function main() {
     radius: 0.1,
     resolution: res,
   });
-  const spheres = [];
 
   //this uses the code for 3d spheres
-  const sphere = createSphere(0.5, 50, 50);
   console.log(s.verteces);
 
   let pos = s.verteces;
@@ -99,39 +96,6 @@ function main() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   gl.drawArrays(gl.TRIANGLES, 0, pos.length / 2);
-}
-
-function createSphere(radius, latitudeBands, longitudeBands) {
-  const positions: Array<number> = [];
-  const normals: Array<number> = [];
-  const indices: Array<number> = [];
-
-  for (let lat = 0; lat <= latitudeBands; lat++) {
-    const theta = (lat * Math.PI) / latitudeBands;
-    const sinTheta = Math.sin(theta);
-    const cosTheta = Math.cos(theta);
-
-    for (let long = 0; long <= longitudeBands; long++) {
-      const phi = (long * 2 * Math.PI) / longitudeBands;
-      const sinPhi = Math.sin(phi);
-      const cosPhi = Math.cos(phi);
-
-      const x = cosPhi * sinTheta;
-      const y = cosTheta;
-      const z = sinPhi * sinTheta;
-
-      positions.push(radius * x, radius * y, radius * z);
-      normals.push(x, y, z);
-
-      if (lat < latitudeBands && long < longitudeBands) {
-        const first = lat * (longitudeBands + 1) + long;
-        const second = first + longitudeBands + 1;
-        indices.push(first, second, first + 1, second, second + 1, first + 1);
-      }
-    }
-  }
-
-  return { positions, normals, indices };
 }
 
 window.addEventListener("load", () => main());
