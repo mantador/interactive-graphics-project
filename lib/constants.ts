@@ -5,7 +5,7 @@ export class Constants {
   public static canvasHeight: number;
 
   public static get resolution() {
-    return Constants.canvasWidth / Constants.canvasHeight;
+    return Constants.canvasHeight / Constants.canvasWidth;
   }
 
   public static setCanvasDimensions(width: number, height: number) {
