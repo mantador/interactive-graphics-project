@@ -1,19 +1,15 @@
-interface ConstantsParams {
-  canvasWidth: number;
-  canvasHeight: number;
-}
 export class Constants {
-  resolution: number;
-  nBodies = 40;
+  public static nBodies = 40;
   private constructor() {}
-  private static _instance: Constants;
-  public static instance(conf?: ConstantsParams) {
-    if (!Constants._instance) {
-      if (!conf) throw Error("You must provide a conf at initialization");
-      Constants._instance = new Constants();
-      Constants._instance.resolution = conf.canvasHeight / conf.canvasWidth;
-    }
+  public static canvasWidth: number;
+  public static canvasHeight: number;
 
-    return Constants._instance;
+  public static get resolution() {
+    return Constants.canvasWidth / Constants.canvasHeight;
+  }
+
+  public static setCanvasDimensions(width: number, height: number) {
+    Constants.canvasWidth = width;
+    Constants.canvasHeight = height;
   }
 }

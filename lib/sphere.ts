@@ -33,8 +33,6 @@ export class Sphere {
   }
 
   render() {
-    const constants = Constants.instance();
-
     for (let i = 0; i < Sphere.DIV; i++) {
       this.verteces.push(this.conf.center.x, this.conf.center.y);
 
@@ -42,7 +40,7 @@ export class Sphere {
       const sx1 = Math.sin(angle);
       const cx1 = Math.cos(angle);
       const v1x =
-        this.conf.center.x + this.conf.radius * cx1 * constants.resolution;
+        this.conf.center.x + this.conf.radius * cx1 * Constants.resolution;
       const v1y = this.conf.center.y + this.conf.radius * sx1;
       this.verteces.push(v1x, v1y);
 
@@ -50,7 +48,7 @@ export class Sphere {
       const sx2 = Math.sin(angle2);
       const cx2 = Math.cos(angle2);
       const v2x =
-        this.conf.center.x + this.conf.radius * cx2 * constants.resolution;
+        this.conf.center.x + this.conf.radius * cx2 * Constants.resolution;
       const v2y = this.conf.center.y + this.conf.radius * sx2;
       this.verteces.push(v2x, v2y);
     }
