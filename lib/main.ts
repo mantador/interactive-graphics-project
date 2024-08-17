@@ -52,12 +52,12 @@ function main() {
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
 
-  const constants = Constants.instance({ canvasHeight: ch, canvasWidth: cw });
+  const constants = Constants.setCanvasDimensions(ch, cw);
 
   const spheres: Array<Sphere> = [];
   const N = 40;
 
-  for (let i = 0; i < constants.nBodies; i++) {
+  for (let i = 0; i < Constants.nBodies; i++) {
     spheres.push(Sphere.random(10, 10));
   }
 
