@@ -1,10 +1,9 @@
 import { Sphere } from "./sphere";
-import { createCProgram } from "./utils";
+import { createWebglProgram } from "./utils";
 
 export function initGraphicsProgram(
-  canvas: HTMLCanvasElement,
-  spheres: Array<Sphere>,
   gl: WebGLRenderingContext,
+  spheres: Array<Sphere>,
 ) {
   const vs = `
 attribute vec3 p;
@@ -25,7 +24,7 @@ void main()
   gl_FragColor = vec4(0.4, 0.5, 0.3, 1.0);
 }
 `;
-  const program = createCProgram(gl, vs, fs);
+  const program = createWebglProgram(gl, vs, fs);
   gl.useProgram(program);
 
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);

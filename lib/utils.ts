@@ -1,3 +1,5 @@
+import { Constants } from "./constants";
+
 function createCShader(gl: WebGLRenderingContext, source: string, type: any) {
   var shader = gl.createShader(type);
   if (shader == null) throw new DOMException("Compiled shader is null");
@@ -9,9 +11,10 @@ function createCShader(gl: WebGLRenderingContext, source: string, type: any) {
   }
 
   console.error(gl.getShaderInfoLog(shader));
+  throw new Error(gl.getShaderInfoLog(shader) || "No message available");
 }
 
-export function createCProgram(gl, sourceVS, sourceFS) {
+export function createWebglProgram(gl, sourceVS, sourceFS) {
   const vertexShader = createCShader(gl, sourceVS, gl.VERTEX_SHADER);
   const fragmentShader = createCShader(gl, sourceFS, gl.FRAGMENT_SHADER);
   var program = gl.createProgram();
@@ -43,4 +46,37 @@ export function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement) {
   }
 
   return needResize;
+}
+export function initCanvas() {
+  const canvas: HTMLCanvasElement | null = document.querySelector("#canvas");
+  if (!canvas) {
+    throw new Error("Canvas not found");
+  }
+  const gl = canvas.getContext("webgl");
+  if (!gl) {
+    throw new Error("No webgl here");
+  }
+
+  // check we can use floating point textures
+  const ext1 = gl.getExtension('OES_texture_float');
+  if (!ext1) {
+    throw ('Need OES_texture_float');
+  }
+  // check we can render to floating point textures
+  const ext2 = gl.getExtension('WEBGL_color_buffer_float');
+  if (!ext2) {
+    throw ('Need WEBGL_color_buffer_float');
+  }
+  // check we can use textures in a vertex shader
+  if (gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) < 1) {
+    throw ('Can not use textures in vertex shaders');
+  }
+
+  resizeCanvasToDisplaySize(canvas);
+
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+
+  Constants.setCanvasDimensions(cw, ch);
+  return canvas;
 }
