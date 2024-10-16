@@ -40,35 +40,18 @@ export function initComputingProgram(spheres: Array<Sphere>) {
   const srcTexLoc = gl.getUniformLocation(program, "srcTex");
   const srcDimensionsLoc = gl.getUniformLocation(program, "srcDimensions");
 
+  gl.useProgram(program);
+
   // setup a full canvas clip space quad
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW,
-  );
-
-  // const ids = spheres.map((_, i) => i);
-  // // setup a full canvas clip space quad
-  // const buffer = gl.createBuffer();
-  // gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ids), gl.STATIC_DRAW);
-
-  // setup our attributes to tell WebGL how to pull
-  // the data from the buffer above to the position attribute
-  gl.enableVertexAttribArray(positionLoc);
-  gl.vertexAttribPointer(
-    positionLoc,
-    2, // size (num components)
-    gl.FLOAT, // type of data in buffer
-    false, // normalize
-    0, // stride (0 = auto)
-    0, // offset
-  );
-
   const spherePositions = new Float32Array(
     spheres.map((sphere) => sphere.getCoords()).flat(),
+  );
+  const sphereBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sphereBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1, 1, 1]),
+    gl.STATIC_DRAW,
   );
 
   const inputTex = createTexture(
@@ -82,18 +65,28 @@ export function initComputingProgram(spheres: Array<Sphere>) {
   // const inputFb = createFramebuffer(gl, canvas, inputTex);
   const outputFb = createFramebuffer(gl, canvas, outputTex);
 
-  gl.bindFramebuffer(gl.FRAMEBUFFER, outputFb);
-
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, inputTex);
 
-  gl.useProgram(program);
   gl.uniform1i(srcTexLoc, 0);
   gl.uniform2f(srcDimensionsLoc, canvas.width, canvas.height);
 
   return {
     compute: (log: boolean) => {
-      gl.drawArrays(gl.TRIANGLES, 0, canvas.height * canvas.width);
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindBuffer(gl.ARRAY_BUFFER, sphereBuffer);
+      gl.enableVertexAttribArray(positionLoc);
+      gl.vertexAttribPointer(
+        positionLoc,
+        2, // size (num components)
+        gl.FLOAT, // type of data in buffer
+        false, // normalize
+        0, // stride (0 = auto)
+        0, // offset
+      );
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
       // get the result
       if (log) {
         const results = new Float32Array(canvas.width * canvas.height * 4);
