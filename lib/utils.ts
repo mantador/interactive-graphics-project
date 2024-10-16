@@ -47,11 +47,9 @@ export function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement) {
 
   return needResize;
 }
-export function initCanvas() {
-  const canvas: HTMLCanvasElement | null = document.querySelector("#canvas");
-  if (!canvas) {
-    throw new Error("Canvas not found");
-  }
+
+export function checkGlExtensions(canvas: HTMLCanvasElement) {
+
   const gl = canvas.getContext("webgl");
   if (!gl) {
     throw new Error("No webgl here");
@@ -72,6 +70,14 @@ export function initCanvas() {
     throw ('Can not use textures in vertex shaders');
   }
 
+}
+
+export function initCanvas(): HTMLCanvasElement {
+  const canvas: HTMLCanvasElement | null = document.querySelector("#canvas");
+  if (!canvas) {
+    throw new Error("Canvas not found");
+  }
+  checkGlExtensions(canvas);
   resizeCanvasToDisplaySize(canvas);
 
   const cw = canvas.clientWidth;

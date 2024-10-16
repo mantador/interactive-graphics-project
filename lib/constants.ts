@@ -1,5 +1,5 @@
 export class Constants {
-  public static nBodies = 40;
+  public static nBodies = 8;
   private constructor() {}
   public static canvasWidth: number;
   public static canvasHeight: number;
