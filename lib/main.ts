@@ -21,6 +21,10 @@ function main() {
   comp.compute(true);
   comp.compute(true);
   comp.compute(true);
+  comp.compute(true);
+  comp.compute(true);
+  comp.compute(true);
+  comp.compute(true);
 }
 
 window.addEventListener("load", () => main());
