@@ -25,13 +25,14 @@ void main() {
 export function initComputingProgram(spheres: Array<Sphere>) {
   const N = spheres.length;
   const height = 1;
-
+  
   const canvas = document.createElement("canvas");
   canvas.width = N;
   canvas.height = height;
-
+  
   const gl = canvas.getContext("webgl");
   if (!gl) throw new DOMException();
+  const ext = gl.getExtension('GMAN_debug_helper');
 
   checkGlExtensions(canvas);
 
@@ -60,22 +61,42 @@ export function initComputingProgram(spheres: Array<Sphere>) {
     canvas.width,
     canvas.height,
   );
+
+  ext.tagObject(inputTex, 'input-texture');
+  
   const outputTex = createTexture(gl, null, canvas.width, canvas.height);
-
-  // const inputFb = createFramebuffer(gl, canvas, inputTex);
+  ext.tagObject(outputTex, 'output-texture');
+  
+  const inputFb = createFramebuffer(gl, canvas, inputTex);
+  ext.tagObject(inputFb, 'input-framebuf');
   const outputFb = createFramebuffer(gl, canvas, outputTex);
-
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, inputTex);
+  ext.tagObject(outputFb, 'output-framebuf');
 
   gl.uniform1i(srcTexLoc, 0);
   gl.uniform2f(srcDimensionsLoc, canvas.width, canvas.height);
+  console.log(spherePositions);
+
+  let count = 0;
+
+  function incCount() { count = (count+1)%2; }
 
   return {
     compute: (log: boolean) => {
+      let frameBuffer;
+      gl.activeTexture(gl.TEXTURE0);
+      if (count) {
+        gl.bindTexture(gl.TEXTURE_2D, outputTex);
+        frameBuffer = inputFb;
+      } else {
+        gl.bindTexture(gl.TEXTURE_2D, inputTex);
+        frameBuffer = outputFb;
+      }
+      incCount();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      // gl.clearColor(0, 0, 0, 0);
+      // gl.clear(gl.COLOR_BUFFER_BIT);
       gl.bindBuffer(gl.ARRAY_BUFFER, sphereBuffer);
       gl.enableVertexAttribArray(positionLoc);
       gl.vertexAttribPointer(
@@ -100,7 +121,6 @@ export function initComputingProgram(spheres: Array<Sphere>) {
           results,
         );
         // print the results
-        console.log(spherePositions);
         console.log(results.length);
         console.log(results);
       }
@@ -134,8 +154,8 @@ function createTexture(gl, data, width, height) {
 
 function createFramebuffer(gl, canvas, tex) {
   const fb = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb)
   gl.framebufferTexture2D(
     gl.FRAMEBUFFER,
     gl.COLOR_ATTACHMENT0,

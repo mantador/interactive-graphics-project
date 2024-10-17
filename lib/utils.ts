@@ -70,6 +70,8 @@ export function checkGlExtensions(canvas: HTMLCanvasElement) {
     throw ('Can not use textures in vertex shaders');
   }
 
+  const ext = gl.getExtension('GMAN_debug_helper');
+
 }
 
 export function initCanvas(): HTMLCanvasElement {
