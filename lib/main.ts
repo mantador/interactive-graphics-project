@@ -18,13 +18,14 @@ function main() {
   const p = initGraphicsProgram(gl, spheres);
   p.render();
   const comp = initComputingProgram(spheres);
-  comp.compute(true);
-  comp.compute(true);
-  comp.compute(true);
-  comp.compute(true);
-  comp.compute(true);
-  comp.compute(true);
-  comp.compute(true);
+  let res = comp.compute(true, comp.objects);
+
+  res = comp.compute(true, res);
+  res = comp.compute(true, res);
+  res = comp.compute(true, res);
+  res = comp.compute(true, res);
+  res = comp.compute(true, res);
+
 }
 
 window.addEventListener("load", () => main());

@@ -69,6 +69,7 @@ export function initComputingProgram(spheres: Array<Sphere>) {
   
   const inputFb = createFramebuffer(gl, canvas, inputTex);
   ext.tagObject(inputFb, 'input-framebuf');
+
   const outputFb = createFramebuffer(gl, canvas, outputTex);
   ext.tagObject(outputFb, 'output-framebuf');
 
@@ -77,23 +78,28 @@ export function initComputingProgram(spheres: Array<Sphere>) {
   console.log(spherePositions);
 
   let count = 0;
+  let objects = [
+    { frameBuffer: outputFb,   texture: inputTex },
+    { frameBuffer: inputFb,  texture: outputTex }
+  ]
 
   function incCount() { count = (count+1)%2; }
 
   return {
-    compute: (log: boolean) => {
-      let frameBuffer;
+    objects: objects[count],
+    compute: (log: boolean, obj: any) => {
+      gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
-      if (count) {
-        gl.bindTexture(gl.TEXTURE_2D, outputTex);
-        frameBuffer = inputFb;
-      } else {
-        gl.bindTexture(gl.TEXTURE_2D, inputTex);
-        frameBuffer = outputFb;
-      }
-      incCount();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-
+      // if (count) {
+      //   gl.bindTexture(gl.TEXTURE_2D, outputTex);
+      //   frameBuffer = inputFb;
+      // } else {
+      //   gl.bindTexture(gl.TEXTURE_2D, inputTex);
+      //   frameBuffer = outputFb;
+      // }
+      gl.bindTexture(gl.TEXTURE_2D, obj.texture);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, obj.frameBuffer);
+      
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       // gl.clearColor(0, 0, 0, 0);
       // gl.clear(gl.COLOR_BUFFER_BIT);
@@ -124,6 +130,8 @@ export function initComputingProgram(spheres: Array<Sphere>) {
         console.log(results.length);
         console.log(results);
       }
+      incCount();
+      return objects[count];
     },
   };
 }
