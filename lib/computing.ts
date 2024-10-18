@@ -77,26 +77,16 @@ export function initComputingProgram(spheres: Array<Sphere>) {
   gl.uniform2f(srcDimensionsLoc, canvas.width, canvas.height);
   console.log(spherePositions);
 
-  let count = 0;
   let objects = [
     { frameBuffer: outputFb,   texture: inputTex },
     { frameBuffer: inputFb,  texture: outputTex }
   ]
 
-  function incCount() { count = (count+1)%2; }
-
   return {
-    objects: objects[count],
+    objects,
     compute: (log: boolean, obj: any) => {
       gl.useProgram(program);
       gl.activeTexture(gl.TEXTURE0);
-      // if (count) {
-      //   gl.bindTexture(gl.TEXTURE_2D, outputTex);
-      //   frameBuffer = inputFb;
-      // } else {
-      //   gl.bindTexture(gl.TEXTURE_2D, inputTex);
-      //   frameBuffer = outputFb;
-      // }
       gl.bindTexture(gl.TEXTURE_2D, obj.texture);
       gl.bindFramebuffer(gl.FRAMEBUFFER, obj.frameBuffer);
       
@@ -130,8 +120,6 @@ export function initComputingProgram(spheres: Array<Sphere>) {
         console.log(results.length);
         console.log(results);
       }
-      incCount();
-      return objects[count];
     },
   };
 }

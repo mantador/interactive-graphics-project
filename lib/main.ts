@@ -1,8 +1,7 @@
 import { initComputingProgram } from "./computing";
-import { Constants } from "./constants";
 import { initGraphicsProgram } from "./graphics";
 import { Sphere } from "./sphere";
-import { checkGlExtensions, createWebglProgram, initCanvas } from "./utils";
+import { initCanvas } from "./utils";
 
 function main() {
   const canvas = initCanvas();
@@ -16,16 +15,29 @@ function main() {
   }
 
   const p = initGraphicsProgram(gl, spheres);
-  p.render();
   const comp = initComputingProgram(spheres);
-  let res = comp.compute(true, comp.objects);
+  
+  const counter = new Counter()
+  
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  comp.compute(true, comp.objects[counter.count]);
+  counter.inc()
+  
+  p.render();
+}
 
-  res = comp.compute(true, res);
-  res = comp.compute(true, res);
-  res = comp.compute(true, res);
-  res = comp.compute(true, res);
-  res = comp.compute(true, res);
-
+function Counter() {
+  this.count = 0;
+  this.inc = () => (this.count = (this.count + 1) % 2);
 }
 
 window.addEventListener("load", () => main());
