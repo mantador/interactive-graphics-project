@@ -14,6 +14,9 @@ importers:
       gl-matrix:
         specifier: ^3.4.3
         version: 3.4.3
+      typescript:
+        specifier: ^5.6.3
+        version: 5.6.3
       typescript-language-server:
         specifier: ^4.3.3
         version: 4.3.3
@@ -177,6 +180,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  typescript@5.6.3:
+    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   vscode-jsonrpc@5.0.1:
     resolution: {integrity: sha512-JvONPptw3GAQGXlVV2utDcHx0BiY34FupW/kI6mZ5x06ER5DdPG/tXWMVHjTNULF5uKPOUUD0SaXg5QaubJL0A==}
     engines: {node: '>=8.0.0 || >=10.0.0'}
@@ -298,6 +306,8 @@ snapshots:
     dependencies:
       vscode-jsonrpc: 5.0.1
       vscode-languageserver-protocol: 3.17.5
+
+  typescript@5.6.3: {}
 
   vscode-jsonrpc@5.0.1: {}
 

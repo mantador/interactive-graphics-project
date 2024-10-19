@@ -1,14 +1,14 @@
 import { Sphere } from "./sphere";
 import { checkGlExtensions, createWebglProgram } from "./utils";
 
-const vs = `
+const vsPositions = /*glsl*/`
 attribute vec4 position;
 void main() {
   gl_Position = position;
 }
 `;
 
-const fs = `
+const fsPositions = /*glsl*/`
 precision mediump float;
 
 uniform sampler2D srcTex;
@@ -22,31 +22,53 @@ void main() {
 }
 `;
 
-export function initComputingProgram(spheres: Array<Sphere>) {
-  const N = spheres.length;
-  const height = 1;
-  
-  const canvas = document.createElement("canvas");
-  canvas.width = N;
-  canvas.height = height;
-  
-  const gl = canvas.getContext("webgl");
-  if (!gl) throw new DOMException();
+const vsVelocities = /*glsl*/`
+attribute vec4 position;
+void main() {
+  gl_Position = position;
+}
+`;
+
+const fsVelocities = /*glsl*/`
+precision mediump float;
+
+uniform sampler2D srcTex;
+uniform vec2 srcDimensions;
+
+void main() {
+  vec2 texcoord = gl_FragCoord.xy / srcDimensions;
+  vec4 value = texture2D(srcTex, texcoord);
+  //value.x = 20.0;
+  gl_FragColor = value * 2.0;
+}
+`;
+
+export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<Sphere>) {
+
+  const textureWidth = spheres.length;
+  const textureHeight = 1;
+
   const ext = gl.getExtension('GMAN_debug_helper');
 
-  checkGlExtensions(canvas);
+  const velocityProgram = createWebglProgram(gl, vsVelocities, fsVelocities);
+  const positionProgram = createWebglProgram(gl, vsPositions, fsPositions);
 
-  const program = createWebglProgram(gl, vs, fs);
-  const positionLoc = gl.getAttribLocation(program, "position");
-  const srcTexLoc = gl.getUniformLocation(program, "srcTex");
-  const srcDimensionsLoc = gl.getUniformLocation(program, "srcDimensions");
-
-  gl.useProgram(program);
+  gl.useProgram(positionProgram);
+  const positionProgramLocs = {
+    positionLoc: gl.getAttribLocation(positionProgram, "position"),
+    srcTexLoc: gl.getUniformLocation(positionProgram, "srcTex"),
+    srcDimensionsLoc: gl.getUniformLocation(positionProgram, "srcDimensions"),
+  }
 
   // setup a full canvas clip space quad
   const spherePositions = new Float32Array(
     spheres.map((sphere) => sphere.getCoords()).flat(),
   );
+
+  const sphereVelocities = new Float32Array(
+    spheres.map((sphere) => sphere.velocity).flat()
+  )
+
   const sphereBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, sphereBuffer);
   gl.bufferData(
@@ -55,48 +77,76 @@ export function initComputingProgram(spheres: Array<Sphere>) {
     gl.STATIC_DRAW,
   );
 
-  const inputTex = createTexture(
+  const inputPositionTex = createTexture(
     gl,
     spherePositions,
-    canvas.width,
-    canvas.height,
+    textureWidth,
+    textureHeight,
   );
+  ext.tagObject(inputPositionTex, 'input-position-texture');
 
-  ext.tagObject(inputTex, 'input-texture');
-  
-  const outputTex = createTexture(gl, null, canvas.width, canvas.height);
-  ext.tagObject(outputTex, 'output-texture');
-  
-  const inputFb = createFramebuffer(gl, canvas, inputTex);
-  ext.tagObject(inputFb, 'input-framebuf');
+  const inputVelocityTex = createTexture(
+    gl,
+    sphereVelocities,
+    textureWidth,
+    textureHeight
+  )
+  ext.tagObject(inputVelocityTex, 'velocity-texture');
 
-  const outputFb = createFramebuffer(gl, canvas, outputTex);
-  ext.tagObject(outputFb, 'output-framebuf');
+  const outputPositionTex = createTexture(gl, null, textureWidth, textureHeight);
+  ext.tagObject(outputPositionTex, 'output-position-texture');
 
-  gl.uniform1i(srcTexLoc, 0);
-  gl.uniform2f(srcDimensionsLoc, canvas.width, canvas.height);
+  const outputVelocityTex = createTexture(
+    gl,
+    sphereVelocities,
+    textureWidth,
+    textureHeight
+  )
+  ext.tagObject(outputVelocityTex, 'velocity-texture');
+
+
+  const inputFb = createFramebuffer(gl, textureWidth, textureHeight, inputPositionTex);
+  ext.tagObject(inputFb, 'input-position-framebuf');
+
+  const outputFb = createFramebuffer(gl, textureWidth, textureHeight, outputPositionTex);
+  ext.tagObject(outputFb, 'output-position-framebuf');
+
+  const inputVelocityFb = createFramebuffer(gl, textureWidth, textureHeight, inputVelocityTex);
+  ext.tagObject(inputVelocityFb, 'input-velocity-framebuf')
+
+  const outputVelocityFb = createFramebuffer(gl, textureWidth, textureHeight, outputVelocityTex);
+  ext.tagObject(outputVelocityFb, 'input-velocity-framebuf')
+
+  gl.uniform1i(positionProgramLocs.srcTexLoc, 0);
+  gl.uniform2f(positionProgramLocs.srcDimensionsLoc, textureWidth, textureHeight);
   console.log(spherePositions);
 
-  let objects = [
-    { frameBuffer: outputFb,   texture: inputTex },
-    { frameBuffer: inputFb,  texture: outputTex }
-  ]
+  let dataBuffers = [
+    {
+      position: { frameBuffer: outputFb, texture: inputPositionTex },
+      velocity: { frameBuffer: outputVelocityFb, texture: inputVelocityTex }
+    },
+    {
+      position: { frameBuffer: inputFb, texture: outputPositionTex },
+      velocity: { frameBuffer: inputVelocityFb, texture: outputVelocityTex }
+    },
+  ];
 
   return {
-    objects,
-    compute: (log: boolean, obj: any) => {
-      gl.useProgram(program);
+    dataBuffers,
+    computePositions: (log: boolean, dataBuffer: any) => {
+      gl.useProgram(positionProgram);
+
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, obj.texture);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, obj.frameBuffer);
-      
-      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-      // gl.clearColor(0, 0, 0, 0);
-      // gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.texture);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, dataBuffer.position.frameBuffer);
+      gl.viewport(0, 0, textureWidth, textureHeight);
+
       gl.bindBuffer(gl.ARRAY_BUFFER, sphereBuffer);
-      gl.enableVertexAttribArray(positionLoc);
+      gl.enableVertexAttribArray(positionProgramLocs.positionLoc);
       gl.vertexAttribPointer(
-        positionLoc,
+        positionProgramLocs.positionLoc,
         2, // size (num components)
         gl.FLOAT, // type of data in buffer
         false, // normalize
@@ -106,12 +156,12 @@ export function initComputingProgram(spheres: Array<Sphere>) {
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       // get the result
       if (log) {
-        const results = new Float32Array(canvas.width * canvas.height * 4);
+        const results = new Float32Array(textureWidth * textureHeight * 4);
         gl.readPixels(
           0,
           0,
-          canvas.width,
-          canvas.height,
+          textureWidth,
+          textureHeight,
           gl.RGBA,
           gl.FLOAT,
           results,
@@ -148,9 +198,9 @@ function createTexture(gl, data, width, height) {
   return tex;
 }
 
-function createFramebuffer(gl, canvas, tex) {
+function createFramebuffer(gl, width, height, tex) {
   const fb = gl.createFramebuffer();
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.viewport(0, 0, width, height);
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb)
   gl.framebufferTexture2D(
     gl.FRAMEBUFFER,

@@ -10,29 +10,18 @@ function main() {
   if (!gl) throw new Error("WebGL not enabled!");
 
   const spheres: Array<Sphere> = [];
-  for (let i = 0; i < 3; i++) {
-    spheres.push(Sphere.random(10, 10));
+  // for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 50; i++) {
+    spheres.push(Sphere.random(10));
   }
-
-  const p = initGraphicsProgram(gl, spheres);
-  const comp = initComputingProgram(spheres);
   
   const counter = new Counter()
+  const comp = initComputingProgram(gl, spheres);
+  const p = initGraphicsProgram(gl, spheres);
   
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  comp.compute(true, comp.objects[counter.count]);
-  counter.inc()
-  
-  p.render();
+  comp.computePositions(true, comp.dataBuffers[counter.count]);
+  // p.render(comp.dataBuffers[counter.count]);
+  // counter.inc()
 }
 
 function Counter() {

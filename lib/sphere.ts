@@ -18,10 +18,11 @@ export class Sphere {
   }
 
   get center() { return this.conf.center; }
-  
+  get velocity() { return [this.conf.velocity.x, this.conf.velocity.y, this.conf.velocity.z, 0]; }
+
   public getCoords() { return [this.center.x, this.center.y, this.center.z, this.conf.mass ]; }
 
-  private static randomPosition(r: number) {
+  private static randomPosition(r) {
     return Math.floor(Math.random() * (1000 - 2 * r)) + r;
   }
 
@@ -30,16 +31,16 @@ export class Sphere {
     // Ensure that position + radius does not overflow the canvas
     let x = Sphere.randomPosition(r);
     let y = Sphere.randomPosition(r);
-    // let z = Sphere.randomPosition(r);
-    let z = 0;
+    let z = Sphere.randomPosition(r);
     return new Sphere({
       center: {
         x: x,
         y: y,
         z: 0,
+        // z: z,
       },
       velocity: {
-        x: 0,
+        x: 1,
         y: 0,
         z: 0,
       }, 
