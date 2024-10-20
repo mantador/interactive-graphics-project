@@ -19,7 +19,8 @@ function main() {
   const comp = initComputingProgram(gl, spheres);
   const p = initGraphicsProgram(gl, spheres);
   
-  comp.computePositions(true, comp.dataBuffers[counter.count]);
+  comp.computeVelocities(comp.dataBuffers[counter.count])
+  comp.computePositions(comp.dataBuffers[counter.count])
   // p.render(comp.dataBuffers[counter.count]);
   // counter.inc()
 }
