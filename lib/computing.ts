@@ -15,12 +15,13 @@ uniform sampler2D positionTexture;
 uniform sampler2D velocityTexture;
 uniform vec2 dimensions;
 
+
 void main() {
   vec2 texcoord = gl_FragCoord.xy / dimensions;
-  vec4 positionValue = texture2D(positionTexture, texcoord);
-  vec4 velocityValue = texture2D(velocityTexture, texcoord);
+  vec4 p = texture2D(positionTexture, texcoord);
+  vec4 v = texture2D(velocityTexture, texcoord);  
 
-  gl_FragColor = positionValue + velocityValue;
+  gl_FragColor = v;
 }
 `;
 
@@ -55,7 +56,9 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
   const ext = gl.getExtension('GMAN_debug_helper');
 
   const velocityProgram = createWebglProgram(gl, vsVelocities, fsVelocities);
+  ext.tagObject(velocityProgram, 'velocity-computation-program');
   const positionProgram = createWebglProgram(gl, vsPositions, fsPositions);
+  ext.tagObject(positionProgram, 'position-computation-program');
 
   gl.useProgram(positionProgram);
   const positionProgramLocs = {
@@ -96,8 +99,8 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     textureHeight,
   );
   ext.tagObject(inputPositionTex, 'input-position-texture');
+  inputPositionTex.id = "input-position-tex";
 
-  /*  TEXTURE SETUP  */
   const inputVelocityTex = createTexture(
     gl,
     sphereVelocities,
@@ -105,9 +108,12 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     textureHeight
   )
   ext.tagObject(inputVelocityTex, 'input-velocity-texture');
+  inputVelocityTex.id = "input-velocity-tex";
+
 
   const outputPositionTex = createTexture(gl, null, textureWidth, textureHeight);
   ext.tagObject(outputPositionTex, 'output-position-texture');
+  outputPositionTex.id = "output-position-tex";
 
   const outputVelocityTex = createTexture(
     gl,
@@ -116,13 +122,14 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     textureHeight
   )
   ext.tagObject(outputVelocityTex, 'output-velocity-texture');
-
+  outputVelocityTex.id = "output-velocity-tex";
 
   const inputPositionFb = createFramebuffer(gl, textureWidth, textureHeight, inputPositionTex);
   ext.tagObject(inputPositionFb, 'input-position-framebuf');
 
   const outputPositionFb = createFramebuffer(gl, textureWidth, textureHeight, outputPositionTex);
   ext.tagObject(outputPositionFb, 'output-position-framebuf');
+  outputPositionFb.texture = outputPositionTex;
 
   const inputVelocityFb = createFramebuffer(gl, textureWidth, textureHeight, inputVelocityTex);
   ext.tagObject(inputVelocityFb, 'input-velocity-framebuf')
@@ -135,12 +142,12 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
 
   let dataBuffers = [
     {
-      velocity: { 
+      velocity: {
         frameBuffer: outputVelocityFb,
         inputTexture: inputVelocityTex,
         outputTexture: outputVelocityTex,
       },
-      position: { 
+      position: {
         frameBuffer: outputPositionFb,
         inputTexture: inputPositionTex,
         outputTexture: outputPositionTex,
@@ -199,7 +206,8 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.inputTexture);
     gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.outputTexture);
+    // gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.outputTexture);
+    gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.inputTexture);
 
     gl.uniform1i(positionProgramLocs.positionTexture, 0);
     gl.uniform1i(positionProgramLocs.velocityTexture, 1);
@@ -231,17 +239,16 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
       results,
     );
     // print the results
-    console.log(results.length);
+    console.log("POSITIONS")
     console.log(results);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   }
 
   return {
     dataBuffers,
-    computeVelocities: computeVelocities,
-    computePositions: (dataBuffer: any) => {
-      computePositions(dataBuffer);
-    },
+    computeVelocities,
+    computePositions,
   };
 }
 

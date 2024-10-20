@@ -36,8 +36,7 @@ export class Sphere {
       center: {
         x: x,
         y: y,
-        z: 0,
-        // z: z,
+        z: z,
       },
       velocity: {
         x: 1,

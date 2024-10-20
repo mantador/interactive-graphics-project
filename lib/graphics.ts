@@ -19,6 +19,7 @@ export function initGraphicsProgram(
     vec4 position = texture2D(positionTexture, (vec2(index, 1.0)+0.5)/dimensions);
     // do the common matrix math
     gl_Position = matrix*vec4(position.xyz, 1.0);
+    // gl_PointSize = position.y + 20.0;
     gl_PointSize = position.w;
   }
   `;
@@ -50,8 +51,8 @@ export function initGraphicsProgram(
 
   var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
   var projectionMatrix =
-    m4.perspective(30 * Math.PI / 180, aspect, 1, 2000);
-  var cameraPosition = [0, 0, 500];
+    m4.perspective(60 * Math.PI / 180, aspect, 100, 2000);
+  var cameraPosition = [0, 0, 1500];
   var target = [500, 500, 0];
   var up = [0, 1, 0];
   var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
@@ -88,7 +89,7 @@ export function initGraphicsProgram(
       gl.vertexAttribPointer(indexLoc, 1, gl.FLOAT, false, 0, 0);
 
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.texture);
+      gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.outputTexture);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 
