@@ -8,6 +8,8 @@ void main() {
 }
 `;
 
+// ===============================
+
 const fsVelocities = /*glsl*/`
 precision mediump float;
 
@@ -15,15 +17,82 @@ uniform sampler2D positionTexture;
 uniform sampler2D velocityTexture;
 uniform vec2 dimensions;
 
+const float MAX_ITER=1000.0;
+
+vec2 indexToTextureIndex(vec2 dimensions, float index) {
+  float y = floor(index / dimensions.x);
+  float x = mod(index, dimensions.x);
+  return (vec2(x, y) + 0.5) / dimensions;
+}
+
+vec3 reflectVelocity(vec3 vel, vec3 normal) {
+  float dotp = dot(vel.xyz, normal);
+  float norm = dot(normal, normal);
+  return vel.xyz - (2.0 * (dotp/norm) )*normal;
+}
+
 
 void main() {
   vec2 texcoord = gl_FragCoord.xy / dimensions;
-  vec4 p = texture2D(positionTexture, texcoord);
+  vec3 force = vec3(0, 0, 0);
+  vec4 p1 = texture2D(positionTexture, texcoord);
   vec4 v = texture2D(velocityTexture, texcoord);  
+  
+  float G = 1.0;
 
-  gl_FragColor = v;
+  vec3 totalForce = vec3(0, 0, 0);
+
+  for(float i = 0.0; i < MAX_ITER; i++) {
+    if (float(i) == floor(gl_FragCoord.x)) { continue; }
+    if (float(i) == dimensions.x) { break; }
+
+    vec2 index = indexToTextureIndex(dimensions, float(i));
+
+    vec4 p2 = texture2D(positionTexture, index);
+    vec3 diff = p2.xyz - p1.xyz;
+    float distanc = pow(length(diff), 3.0);
+
+    vec3 force = G*( (p1.w * p2.w) / (distanc) )*diff;
+    totalForce += force;
+  }
+
+  vec3 acc = totalForce/p1.w;
+
+  vec3 deltaVel = acc*10.0; // delta T
+  vec3 vel = v.xyz + deltaVel;
+  
+  if (p1.x >= 1000.0) {
+    // vel.x = 999.0;
+    vel = reflectVelocity(vel, vec3(-1, 0, 0));
+  }
+
+  if (p1.x <= 0.0) {
+    // vel.x = 999.0;
+    vel = reflectVelocity(vel, vec3(1, 0, 0));
+  }
+
+  if (p1.y >= 1000.0) { // Collision on upper plane
+    // vel. = 999.0;
+    vel = reflectVelocity(vel, vec3(0, -1, 0));
+  }
+  if (p1.y <= 0.0) {
+    vel = reflectVelocity(vel, vec3(0, 1, 0));
+  }
+
+  if (p1.z >= 1000.0) {
+    vel = reflectVelocity(vel, vec3(0, 0, -1));
+  }
+
+  if (p1.z <= 0.0) {
+    vel = reflectVelocity(vel, vec3(0, 0, 1));
+  }
+  
+
+  gl_FragColor = vec4(vel, 0);
 }
 `;
+
+// ===============================
 
 const vsPositions = /*glsl*/`
 attribute vec4 position;
@@ -43,7 +112,7 @@ void main() {
   vec2 texcoord = gl_FragCoord.xy / dimensions;
   vec4 positionValue = texture2D(positionTexture, texcoord);
   vec4 velocityValue = texture2D(velocityTexture, texcoord);
-  gl_FragColor = positionValue + velocityValue;
+  gl_FragColor = positionValue + velocityValue*10.0; // deltaT
 }
 `;
 
@@ -154,7 +223,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
       },
     },
     {
-      velocity: { frameBuffer: inputVelocityFb, inputTexture: outputVelocityTex, outputTexture: outputVelocityTex },
+      velocity: { frameBuffer: inputVelocityFb, inputTexture: outputVelocityTex, outputTexture: inputVelocityTex },
       position: { frameBuffer: inputPositionFb, inputTexture: outputPositionTex, outputTexture: outputPositionTex },
     },
   ];
@@ -196,8 +265,8 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
       results,
     );
     // print the results
-    console.log(results.length);
-    console.log(results);
+    // console.log('VELOCITIES');
+    // console.log(results);
   }
 
   function computePositions(dataBuffer) {
@@ -206,8 +275,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.inputTexture);
     gl.activeTexture(gl.TEXTURE1);
-    // gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.outputTexture);
-    gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.inputTexture);
+    gl.bindTexture(gl.TEXTURE_2D, dataBuffer.velocity.outputTexture);
 
     gl.uniform1i(positionProgramLocs.positionTexture, 0);
     gl.uniform1i(positionProgramLocs.velocityTexture, 1);
@@ -239,8 +307,8 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
       results,
     );
     // print the results
-    console.log("POSITIONS")
-    console.log(results);
+    // console.log("POSITIONS")
+    // console.log(results);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   }

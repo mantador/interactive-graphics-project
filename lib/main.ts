@@ -10,7 +10,7 @@ function main() {
   if (!gl) throw new Error("WebGL not enabled!");
 
   const spheres: Array<Sphere> = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     spheres.push(Sphere.random(10));
   }
 
@@ -19,12 +19,12 @@ function main() {
   const p = initGraphicsProgram(gl, spheres);
 
   function renderStep() {
+    comp.computeVelocities(comp.dataBuffers[counter.count])
     comp.computePositions(comp.dataBuffers[counter.count]);
     p.render(comp.dataBuffers[counter.count])
     counter.inc();
     requestAnimationFrame(renderStep);
   }
-
   requestAnimationFrame(renderStep);
 
 }

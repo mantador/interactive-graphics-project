@@ -39,7 +39,7 @@ export class Sphere {
         z: z,
       },
       velocity: {
-        x: 1,
+        x: 0,
         y: 0,
         z: 0,
       }, 
