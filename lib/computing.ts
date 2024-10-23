@@ -1,3 +1,4 @@
+import { Constants } from "./constants";
 import { Sphere } from "./sphere";
 import { checkGlExtensions, createWebglProgram } from "./utils";
 
@@ -16,6 +17,7 @@ precision mediump float;
 uniform sampler2D positionTexture;
 uniform sampler2D velocityTexture;
 uniform vec2 dimensions;
+uniform float DT;
 
 const float MAX_ITER=1000.0;
 
@@ -29,6 +31,33 @@ vec3 reflectVelocity(vec3 vel, vec3 normal) {
   float dotp = dot(vel.xyz, normal);
   float norm = dot(normal, normal);
   return vel.xyz - (2.0 * (dotp/norm) )*normal;
+}
+
+vec3 checkAndAdjustCollision(vec4 pos, vec3 vel) {
+  if (pos.x >= 1000.0) {
+    vel = reflectVelocity(vel, vec3(-1, 0, 0));
+  }
+
+  if (pos.x <= 0.0) {
+    vel = reflectVelocity(vel, vec3(1, 0, 0));
+  }
+
+  if (pos.y >= 1000.0) { // Collision on upper plane
+    vel = reflectVelocity(vel, vec3(0, -1, 0));
+  }
+  if (pos.y <= 0.0) {
+    vel = reflectVelocity(vel, vec3(0, 1, 0));
+  }
+
+  if (pos.z >= 1000.0) {
+    vel = reflectVelocity(vel, vec3(0, 0, -1));
+  }
+
+  if (pos.z <= 0.0) {
+    vel = reflectVelocity(vel, vec3(0, 0, 1));
+  }
+
+  return vel;
 }
 
 
@@ -58,37 +87,12 @@ void main() {
 
   vec3 acc = totalForce/p1.w;
 
-  vec3 deltaVel = acc*10.0; // delta T
+  vec3 deltaVel = acc*DT; // delta T
   vec3 vel = v.xyz + deltaVel;
   
-  if (p1.x >= 1000.0) {
-    // vel.x = 999.0;
-    vel = reflectVelocity(vel, vec3(-1, 0, 0));
-  }
+  vec3 newVel = checkAndAdjustCollision(p1, vel);
 
-  if (p1.x <= 0.0) {
-    // vel.x = 999.0;
-    vel = reflectVelocity(vel, vec3(1, 0, 0));
-  }
-
-  if (p1.y >= 1000.0) { // Collision on upper plane
-    // vel. = 999.0;
-    vel = reflectVelocity(vel, vec3(0, -1, 0));
-  }
-  if (p1.y <= 0.0) {
-    vel = reflectVelocity(vel, vec3(0, 1, 0));
-  }
-
-  if (p1.z >= 1000.0) {
-    vel = reflectVelocity(vel, vec3(0, 0, -1));
-  }
-
-  if (p1.z <= 0.0) {
-    vel = reflectVelocity(vel, vec3(0, 0, 1));
-  }
-  
-
-  gl_FragColor = vec4(vel, 0);
+  gl_FragColor = vec4(newVel, 0);
 }
 `;
 
@@ -96,6 +100,7 @@ void main() {
 
 const vsPositions = /*glsl*/`
 attribute vec4 position;
+
 void main() {
   gl_Position = position;
 }
@@ -107,12 +112,13 @@ precision mediump float;
 uniform sampler2D positionTexture;
 uniform sampler2D velocityTexture;
 uniform vec2 dimensions;
+uniform float DT;
 
 void main() {
   vec2 texcoord = gl_FragCoord.xy / dimensions;
   vec4 positionValue = texture2D(positionTexture, texcoord);
   vec4 velocityValue = texture2D(velocityTexture, texcoord);
-  gl_FragColor = positionValue + velocityValue*10.0; // deltaT
+  gl_FragColor = positionValue + velocityValue*DT; // deltaT
 }
 `;
 
@@ -135,6 +141,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     positionTexture: gl.getUniformLocation(positionProgram, "positionTexture"),
     velocityTexture: gl.getUniformLocation(positionProgram, "velocityTexture"),
     dimensions: gl.getUniformLocation(positionProgram, "dimensions"),
+    dt: gl.getUniformLocation(positionProgram, "DT"),
   }
 
   const velocityProgramLocs = {
@@ -142,6 +149,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     positionTexture: gl.getUniformLocation(velocityProgram, "positionTexture"),
     velocityTexture: gl.getUniformLocation(velocityProgram, "velocityTexture"),
     dimensions: gl.getUniformLocation(velocityProgram, "dimensions"),
+    dt: gl.getUniformLocation(velocityProgram, "DT"),
   }
 
   // setup a full canvas clip space quad
@@ -238,6 +246,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     gl.uniform1i(velocityProgramLocs.positionTexture, 0);
     gl.uniform1i(velocityProgramLocs.velocityTexture, 1);
     gl.uniform2f(velocityProgramLocs.dimensions, textureWidth, textureHeight)
+    gl.uniform1f(velocityProgramLocs.dt, Constants.dt);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, dataBuffer.velocity.frameBuffer);
     gl.viewport(0, 0, textureWidth, textureHeight);
@@ -254,19 +263,21 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     );
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    const results = new Float32Array(textureWidth * textureHeight * 4);
-    gl.readPixels(
-      0,
-      0,
-      textureWidth,
-      textureHeight,
-      gl.RGBA,
-      gl.FLOAT,
-      results,
-    );
-    // print the results
-    // console.log('VELOCITIES');
-    // console.log(results);
+    if (Constants.log) {
+      const results = new Float32Array(textureWidth * textureHeight * 4);
+      gl.readPixels(
+        0,
+        0,
+        textureWidth,
+        textureHeight,
+        gl.RGBA,
+        gl.FLOAT,
+        results,
+      );
+      // print the results
+      console.log('VELOCITIES');
+      console.log(results);
+    }
   }
 
   function computePositions(dataBuffer) {
@@ -280,6 +291,7 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     gl.uniform1i(positionProgramLocs.positionTexture, 0);
     gl.uniform1i(positionProgramLocs.velocityTexture, 1);
     gl.uniform2f(positionProgramLocs.dimensions, textureWidth, textureHeight);
+    gl.uniform1f(positionProgramLocs.dt, Constants.dt);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, dataBuffer.position.frameBuffer);
     gl.viewport(0, 0, textureWidth, textureHeight);
@@ -296,7 +308,9 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
     );
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     // get the result
-    const results = new Float32Array(textureWidth * textureHeight * 4);
+
+    if (Constants.log) {
+      const results = new Float32Array(textureWidth * textureHeight * 4);
     gl.readPixels(
       0,
       0,
@@ -307,8 +321,9 @@ export function initComputingProgram(gl: WebGLRenderingContext, spheres: Array<S
       results,
     );
     // print the results
-    // console.log("POSITIONS")
-    // console.log(results);
+    console.log("POSITIONS")
+    console.log(results);
+  }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   }

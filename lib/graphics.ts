@@ -22,7 +22,15 @@ export function initGraphicsProgram(
   void main() {
     vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));
     gl_Position = matrix*vec4(position.xyz, 1.0);
-    gl_PointSize = position.w;
+    
+    vec3 cameraPosition = vec3(500.0, 500.0, 1000.0);
+    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);
+    float distanceFromCamera = length(viewSpace.xyz);
+
+
+    float baseSize = position.w;
+    float perspectiveScale = 1000.0 / distanceFromCamera;
+    gl_PointSize = baseSize * perspectiveScale;
   }
   `;
 
@@ -54,7 +62,7 @@ export function initGraphicsProgram(
   var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
   var projectionMatrix =
     m4.perspective(60 * Math.PI / 180, aspect, 1, 2000);
-  var cameraPosition = [500, 500, 1000];
+  var cameraPosition = [500, 500, 2000];
   var target = [500, 500, 500];
   var up = [0, 1, 0];
   var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
@@ -67,7 +75,6 @@ export function initGraphicsProgram(
   gl.uniformMatrix4fv(
     matrixLoc, false,
     viewProjectionMatrix
-    // m4.orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1)
   )
   const pBuffer = gl.createBuffer();
 

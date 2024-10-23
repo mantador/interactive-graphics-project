@@ -1,5 +1,5 @@
 import { initComputingProgram } from "./computing";
-import { initGraphicsProgram } from "./graphics";
+import { initGraphicsProgram as initRenderingProgram } from "./graphics";
 import { Sphere } from "./sphere";
 import { initCanvas } from "./utils";
 
@@ -13,15 +13,16 @@ function main() {
   for (let i = 0; i < 10; i++) {
     spheres.push(Sphere.random(10));
   }
+  // spheres.push(new Sphere({ center: {x: 500, y: 500, z: 500}, velocity: {x: 3, y: 2, z: 4}, mass: 20 }))
 
   const counter = new Counter()
-  const comp = initComputingProgram(gl, spheres);
-  const p = initGraphicsProgram(gl, spheres);
+  const compute = initComputingProgram(gl, spheres);
+  const render = initRenderingProgram(gl, spheres);
 
   function renderStep() {
-    comp.computeVelocities(comp.dataBuffers[counter.count])
-    comp.computePositions(comp.dataBuffers[counter.count]);
-    p.render(comp.dataBuffers[counter.count])
+    compute.computeVelocities(compute.dataBuffers[counter.count])
+    compute.computePositions(compute.dataBuffers[counter.count]);
+    render.render(compute.dataBuffers[counter.count])
     counter.inc();
     requestAnimationFrame(renderStep);
   }

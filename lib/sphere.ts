@@ -47,6 +47,9 @@ export class Sphere {
     });
   }
 
+  /**
+   * @deprecated
+   */
   render() {
     for (let i = 0; i < Sphere.DIV; i++) {
       this.verteces.push(this.conf.center.x, this.conf.center.y);
