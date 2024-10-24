@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild lib/main.ts --bundle --outfile=lib.js --sourcemap --target=chrome58,firefox57,safari11,edge16"
+    "build": "esbuild lib/main.js --bundle --outfile=lib.js --sourcemap --target=chrome58,firefox57,safari11,edge16"
   },
   "keywords": [],
   "author": "",

@@ -3,10 +3,8 @@
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-  // lib/constants.ts
+  // lib/constants.js
   var _Constants = class _Constants {
-    constructor() {
-    }
     static get resolution() {
       return _Constants.canvasHeight / _Constants.canvasWidth;
     }
@@ -18,9 +16,54 @@
   __publicField(_Constants, "nBodies", 8);
   __publicField(_Constants, "canvasWidth");
   __publicField(_Constants, "canvasHeight");
+  __publicField(_Constants, "dt", 1);
+  __publicField(_Constants, "log", false);
   var Constants = _Constants;
 
-  // lib/utils.ts
+  // lib/sphere.js
+  var _Sphere = class _Sphere {
+    constructor(conf) {
+      __publicField(this, "verteces", []);
+      this.verteces = [];
+      this._center = conf.center;
+      this.mass = conf.mass;
+      this._velocity = conf.velocity;
+    }
+    get velocity() {
+      return [this._velocity.x, this._velocity.y, this._velocity.z, 0];
+    }
+    get center() {
+      return [this._center.x, this._center.y, this._center.z, this.mass];
+    }
+    static randomPosition(r) {
+      return Math.floor(Math.random() * (1e3 - 2 * r)) + r;
+    }
+    static random(minRadius = 10, maxRadius = 40) {
+      const r = Math.floor(Math.random() * (maxRadius - minRadius)) + minRadius;
+      let x = _Sphere.randomPosition(r);
+      let y = _Sphere.randomPosition(r);
+      let z = _Sphere.randomPosition(r);
+      return new _Sphere({
+        center: {
+          x,
+          y,
+          z
+        },
+        velocity: {
+          x: 0,
+          y: 0,
+          z: 0
+        },
+        mass: r
+      });
+    }
+  };
+  __publicField(_Sphere, "DIV", 50);
+  __publicField(_Sphere, "PI2", Math.PI * 2);
+  __publicField(_Sphere, "DRAD", _Sphere.PI2 / _Sphere.DIV);
+  var Sphere = _Sphere;
+
+  // lib/utils.js
   function createCShader(gl, source, type) {
     var shader = gl.createShader(type);
     if (shader == null) throw new DOMException("Compiled shader is null");
@@ -88,22 +131,22 @@
     return canvas;
   }
 
-  // lib/computing.ts
+  // lib/computing.js
   var vsVelocities = (
     /*glsl*/
     "\nattribute vec4 position;\nvoid main() {\n  gl_Position = position;\n}\n"
   );
   var fsVelocities = (
     /*glsl*/
-    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec3 force = vec3(0, 0, 0);\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  float G = 1.0;\n\n  vec3 totalForce = vec3(0, 0, 0);\n\n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n\n    vec2 index = indexToTextureIndex(dimensions, float(i));\n\n    vec4 p2 = texture2D(positionTexture, index);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n\n    vec3 force = G*( (p1.w * p2.w) / (distanc) )*diff;\n    totalForce += force;\n  }\n\n  vec3 acc = totalForce/p1.w;\n\n  vec3 deltaVel = acc*10.0; // delta T\n  vec3 vel = v.xyz + deltaVel;\n  \n  if (p1.x >= 1000.0) {\n    // vel.x = 999.0;\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (p1.x <= 0.0) {\n    // vel.x = 999.0;\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (p1.y >= 1000.0) { // Collision on upper plane\n    // vel. = 999.0;\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (p1.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (p1.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (p1.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n  \n\n  gl_FragColor = vec4(vel, 0);\n}\n"
+    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\nvec3 checkAndAdjustCollision(vec4 pos, vec3 vel) {\n  if (pos.x >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (pos.x <= 0.0) {\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (pos.y >= 1000.0) { // Collision on upper plane\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (pos.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (pos.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (pos.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n\n  return vel;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec3 force = vec3(0, 0, 0);\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  float G = 1.0;\n\n  vec3 totalForce = vec3(0, 0, 0);\n\n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n\n    vec2 index = indexToTextureIndex(dimensions, float(i));\n\n    vec4 p2 = texture2D(positionTexture, index);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n\n    vec3 force = G*( (p1.w * p2.w) / (distanc) )*diff;\n    totalForce += force;\n  }\n\n  vec3 acc = totalForce/p1.w;\n\n  vec3 deltaVel = acc*DT; // delta T\n  vec3 vel = v.xyz + deltaVel;\n  \n  vec3 newVel = checkAndAdjustCollision(p1, vel);\n\n  gl_FragColor = vec4(newVel, 0);\n}\n"
   );
   var vsPositions = (
     /*glsl*/
-    "\nattribute vec4 position;\nvoid main() {\n  gl_Position = position;\n}\n"
+    "\nattribute vec4 position;\n\nvoid main() {\n  gl_Position = position;\n}\n"
   );
   var fsPositions = (
     /*glsl*/
-    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec4 positionValue = texture2D(positionTexture, texcoord);\n  vec4 velocityValue = texture2D(velocityTexture, texcoord);\n  gl_FragColor = positionValue + velocityValue*10.0; // deltaT\n}\n"
+    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec4 positionValue = texture2D(positionTexture, texcoord);\n  vec4 velocityValue = texture2D(velocityTexture, texcoord);\n  gl_FragColor = positionValue + velocityValue*DT; // deltaT\n}\n"
   );
   function initComputingProgram(gl, spheres) {
     const textureWidth = spheres.length;
@@ -118,16 +161,18 @@
       position: gl.getAttribLocation(positionProgram, "position"),
       positionTexture: gl.getUniformLocation(positionProgram, "positionTexture"),
       velocityTexture: gl.getUniformLocation(positionProgram, "velocityTexture"),
-      dimensions: gl.getUniformLocation(positionProgram, "dimensions")
+      dimensions: gl.getUniformLocation(positionProgram, "dimensions"),
+      dt: gl.getUniformLocation(positionProgram, "DT")
     };
     const velocityProgramLocs = {
       position: gl.getAttribLocation(velocityProgram, "position"),
       positionTexture: gl.getUniformLocation(velocityProgram, "positionTexture"),
       velocityTexture: gl.getUniformLocation(velocityProgram, "velocityTexture"),
-      dimensions: gl.getUniformLocation(velocityProgram, "dimensions")
+      dimensions: gl.getUniformLocation(velocityProgram, "dimensions"),
+      dt: gl.getUniformLocation(velocityProgram, "DT")
     };
     const spherePositions = new Float32Array(
-      spheres.map((sphere) => sphere.getCoords()).flat()
+      spheres.map((sphere) => sphere.center).flat()
     );
     const sphereVelocities = new Float32Array(
       spheres.map((sphere) => sphere.velocity).flat()
@@ -203,6 +248,7 @@
       gl.uniform1i(velocityProgramLocs.positionTexture, 0);
       gl.uniform1i(velocityProgramLocs.velocityTexture, 1);
       gl.uniform2f(velocityProgramLocs.dimensions, textureWidth, textureHeight);
+      gl.uniform1f(velocityProgramLocs.dt, Constants.dt);
       gl.bindFramebuffer(gl.FRAMEBUFFER, dataBuffer.velocity.frameBuffer);
       gl.viewport(0, 0, textureWidth, textureHeight);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -221,16 +267,20 @@
         // offset
       );
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-      const results = new Float32Array(textureWidth * textureHeight * 4);
-      gl.readPixels(
-        0,
-        0,
-        textureWidth,
-        textureHeight,
-        gl.RGBA,
-        gl.FLOAT,
-        results
-      );
+      if (Constants.log) {
+        const results = new Float32Array(textureWidth * textureHeight * 4);
+        gl.readPixels(
+          0,
+          0,
+          textureWidth,
+          textureHeight,
+          gl.RGBA,
+          gl.FLOAT,
+          results
+        );
+        console.log("VELOCITIES");
+        console.log(results);
+      }
     }
     function computePositions(dataBuffer) {
       gl.useProgram(positionProgram);
@@ -241,6 +291,7 @@
       gl.uniform1i(positionProgramLocs.positionTexture, 0);
       gl.uniform1i(positionProgramLocs.velocityTexture, 1);
       gl.uniform2f(positionProgramLocs.dimensions, textureWidth, textureHeight);
+      gl.uniform1f(positionProgramLocs.dt, Constants.dt);
       gl.bindFramebuffer(gl.FRAMEBUFFER, dataBuffer.position.frameBuffer);
       gl.viewport(0, 0, textureWidth, textureHeight);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -259,16 +310,20 @@
         // offset
       );
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-      const results = new Float32Array(textureWidth * textureHeight * 4);
-      gl.readPixels(
-        0,
-        0,
-        textureWidth,
-        textureHeight,
-        gl.RGBA,
-        gl.FLOAT,
-        results
-      );
+      if (Constants.log) {
+        const results = new Float32Array(textureWidth * textureHeight * 4);
+        gl.readPixels(
+          0,
+          0,
+          textureWidth,
+          textureHeight,
+          gl.RGBA,
+          gl.FLOAT,
+          results
+        );
+        console.log("POSITIONS");
+        console.log(results);
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     return {
@@ -319,11 +374,11 @@
     return fb;
   }
 
-  // lib/graphics.ts
+  // lib/graphics.js
   function initGraphicsProgram(gl, spheres) {
     const vs = (
       /*glsl*/
-      "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n\n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    gl_PointSize = position.w;\n  }\n  "
+      "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n\n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    \n    vec3 cameraPosition = vec3(500.0, 500.0, 1000.0);\n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n\n\n    float baseSize = position.w;\n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = baseSize * perspectiveScale;\n  }\n  "
     );
     const fs = (
       /*glsl*/
@@ -342,7 +397,7 @@
     }
     var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 2e3);
-    var cameraPosition = [500, 500, 1e3];
+    var cameraPosition = [500, 500, 2e3];
     var target = [500, 500, 500];
     var up = [0, 1, 0];
     var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
@@ -352,7 +407,6 @@
       matrixLoc,
       false,
       viewProjectionMatrix
-      // m4.orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1)
     );
     const pBuffer = gl.createBuffer();
     let ids = new Array(spheres.length).fill(0).map((_, i) => i);
@@ -380,69 +434,7 @@
     };
   }
 
-  // lib/sphere.ts
-  var _Sphere = class _Sphere {
-    constructor(conf) {
-      this.conf = conf;
-      __publicField(this, "verteces", []);
-      this.verteces = [];
-      this.render();
-    }
-    get center() {
-      return this.conf.center;
-    }
-    get velocity() {
-      return [this.conf.velocity.x, this.conf.velocity.y, this.conf.velocity.z, 0];
-    }
-    getCoords() {
-      return [this.center.x, this.center.y, this.center.z, this.conf.mass];
-    }
-    static randomPosition(r) {
-      return Math.floor(Math.random() * (1e3 - 2 * r)) + r;
-    }
-    static random(minRadius = 10, maxRadius = 40) {
-      const r = Math.floor(Math.random() * (maxRadius - minRadius)) + minRadius;
-      let x = _Sphere.randomPosition(r);
-      let y = _Sphere.randomPosition(r);
-      let z = _Sphere.randomPosition(r);
-      return new _Sphere({
-        center: {
-          x,
-          y,
-          z
-        },
-        velocity: {
-          x: 0,
-          y: 0,
-          z: 0
-        },
-        mass: r
-      });
-    }
-    render() {
-      for (let i = 0; i < _Sphere.DIV; i++) {
-        this.verteces.push(this.conf.center.x, this.conf.center.y);
-        const angle = i * _Sphere.DRAD % _Sphere.PI2;
-        const sx1 = Math.sin(angle);
-        const cx1 = Math.cos(angle);
-        const v1x = this.conf.center.x + this.conf.mass * cx1 * Constants.resolution;
-        const v1y = this.conf.center.y + this.conf.mass * sx1;
-        this.verteces.push(v1x, v1y);
-        const angle2 = (angle + _Sphere.DRAD) % _Sphere.PI2;
-        const sx2 = Math.sin(angle2);
-        const cx2 = Math.cos(angle2);
-        const v2x = this.conf.center.x + this.conf.mass * cx2 * Constants.resolution;
-        const v2y = this.conf.center.y + this.conf.mass * sx2;
-        this.verteces.push(v2x, v2y);
-      }
-    }
-  };
-  __publicField(_Sphere, "DIV", 50);
-  __publicField(_Sphere, "PI2", Math.PI * 2);
-  __publicField(_Sphere, "DRAD", _Sphere.PI2 / _Sphere.DIV);
-  var Sphere = _Sphere;
-
-  // lib/main.ts
+  // lib/main.js
   function main() {
     const canvas = initCanvas();
     const gl = canvas.getContext("webgl");
@@ -452,12 +444,12 @@
       spheres.push(Sphere.random(10));
     }
     const counter = new Counter();
-    const comp = initComputingProgram(gl, spheres);
-    const p = initGraphicsProgram(gl, spheres);
+    const compute = initComputingProgram(gl, spheres);
+    const render = initGraphicsProgram(gl, spheres);
     function renderStep() {
-      comp.computeVelocities(comp.dataBuffers[counter.count]);
-      comp.computePositions(comp.dataBuffers[counter.count]);
-      p.render(comp.dataBuffers[counter.count]);
+      compute.computeVelocities(compute.dataBuffers[counter.count]);
+      compute.computePositions(compute.dataBuffers[counter.count]);
+      render.render(compute.dataBuffers[counter.count]);
       counter.inc();
       requestAnimationFrame(renderStep);
     }
