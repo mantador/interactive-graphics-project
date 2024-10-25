@@ -138,7 +138,7 @@
   );
   var fsVelocities = (
     /*glsl*/
-    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\nvec3 checkAndAdjustCollision(vec4 pos, vec3 vel) {\n  if (pos.x >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (pos.x <= 0.0) {\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (pos.y >= 1000.0) { // Collision on upper plane\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (pos.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (pos.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (pos.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n\n  return vel;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec3 force = vec3(0, 0, 0);\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  float G = 1.0;\n\n  vec3 totalForce = vec3(0, 0, 0);\n\n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n\n    vec2 index = indexToTextureIndex(dimensions, float(i));\n\n    vec4 p2 = texture2D(positionTexture, index);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n\n    vec3 force = G*( (p1.w * p2.w) / (distanc) )*diff;\n    totalForce += force;\n  }\n\n  vec3 acc = totalForce/p1.w;\n\n  vec3 deltaVel = acc*DT; // delta T\n  vec3 vel = v.xyz + deltaVel;\n  \n  vec3 newVel = checkAndAdjustCollision(p1, vel);\n\n  gl_FragColor = vec4(newVel, 0);\n}\n"
+    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\nvec3 checkAndAdjustCollision(vec4 pos, vec3 vel) {\n  if (pos.x >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (pos.x <= 0.0) {\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (pos.y >= 1000.0) { // Collision on upper plane\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (pos.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (pos.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (pos.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n\n  return vel;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec3 force = vec3(0, 0, 0);\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  float G = 10.0;\n\n  vec3 totalForce = vec3(0, 0, 0);\n\n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n\n    vec2 index = indexToTextureIndex(dimensions, float(i));\n\n    vec4 p2 = texture2D(positionTexture, index);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n\n    vec3 force = G*( (p1.w * p2.w) / (distanc) )*diff;\n    totalForce += force;\n  }\n\n  vec3 acc = totalForce/p1.w;\n\n  vec3 deltaVel = acc*DT; // delta T\n  vec3 vel = v.xyz + deltaVel;\n  \n  vec3 newVel = checkAndAdjustCollision(p1, vel);\n\n  gl_FragColor = vec4(newVel, 0);\n}\n"
   );
   var vsPositions = (
     /*glsl*/
@@ -378,11 +378,11 @@
   function initGraphicsProgram(gl, spheres) {
     const vs = (
       /*glsl*/
-      "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n\n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    \n    vec3 cameraPosition = vec3(500.0, 500.0, 1000.0);\n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n\n\n    float baseSize = position.w;\n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = baseSize * perspectiveScale;\n  }\n  "
+      "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n  uniform vec3 cameraPosition;\n\n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    \n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n\n\n    float baseSize = position.w;\n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = baseSize * perspectiveScale;\n  }\n  "
     );
     const fs = (
       /*glsl*/
-      "\n  precision mediump float;\n  void main() {\n      vec2 centerToPixel = 2.0 * gl_PointCoord - 1.0;\n      if (dot(centerToPixel, centerToPixel) > 1.0) {\n          discard;\n      }\n      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); \n  }\n  "
+      "\n  precision mediump float;\n  void main() {\n      vec2 centerToPixel = 2.0 * gl_PointCoord - 1.0;\n      if (dot(centerToPixel, centerToPixel) > 1.0) {\n          discard;\n      }\n      \n      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); \n  }\n  "
     );
     const program = createWebglProgram(gl, vs, fs);
     gl.useProgram(program);
@@ -390,6 +390,7 @@
     const textureLoc = gl.getUniformLocation(program, "positionTexture");
     const dimensionsLoc = gl.getUniformLocation(program, "dimensions");
     const matrixLoc = gl.getUniformLocation(program, "matrix");
+    const cameraLoc = gl.getUniformLocation(program, "cameraPosition");
     gl.uniform1i(textureLoc, 0);
     gl.uniform2f(dimensionsLoc, spheres.length, 1);
     if (gl.canvas instanceof OffscreenCanvas) {
@@ -408,6 +409,7 @@
       false,
       viewProjectionMatrix
     );
+    gl.uniform3f(cameraLoc, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
     const pBuffer = gl.createBuffer();
     let ids = new Array(spheres.length).fill(0).map((_, i) => i);
     return {
