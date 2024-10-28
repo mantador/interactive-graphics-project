@@ -7,7 +7,7 @@
   var Constants = class {
   };
   __publicField(Constants, "nBodies", 50);
-  __publicField(Constants, "dt", 0.17);
+  __publicField(Constants, "dt", 0.1);
   // approx of 1/60
   __publicField(Constants, "G", 0.05);
   __publicField(Constants, "log", false);
@@ -388,7 +388,7 @@
       throw new Error("Nope...");
     }
     var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 2e3);
+    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 3e3);
     var cameraPosition = Constants.cameraPosition;
     var target = Constants.cameraTarget;
     var up = [0, 1, 0];
@@ -431,7 +431,7 @@
   // lib/scenarios.js
   var Scenarios = {
     twoSpheresFacing: () => [
-      new Sphere({ center: { x: 200, y: 300, z: 500 }, velocity: { x: 3, y: 0.3, z: 0 }, mass: 20 }),
+      new Sphere({ center: { x: 200, y: 300, z: 500 }, velocity: { x: 3, y: 3, z: 0 }, mass: 20 }),
       new Sphere({ center: { x: 800, y: 300, z: 500 }, velocity: { x: -3, y: 0, z: 0 }, mass: 80 })
     ],
     random: (m, M, count) => {
@@ -440,17 +440,21 @@
         spheres.push(Sphere.random(m, M));
       }
       return spheres;
+    },
+    depthMovement: () => {
+      return [
+        new Sphere({ center: { x: 500, y: 500, z: 500 }, velocity: { x: 0, y: 0, z: 10 }, mass: 80 })
+      ];
     }
   };
 
   // lib/main.js
-  function main() {
+  function main(spheres) {
     const canvas = initCanvas();
     const gl = canvas.getContext("webgl");
     if (!gl) throw new Error("WebGL not enabled!");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const spheres = Scenarios.random(50, 50, Constants.nBodies);
     const counter = new Counter();
     const compute = initComputingProgram(gl, spheres);
     const render = initGraphicsProgram(gl, spheres);
@@ -467,6 +471,11 @@
     this.count = 0;
     this.inc = () => this.count = (this.count + 1) % 2;
   }
-  window.addEventListener("load", () => main());
+  var minRadiusInput = document.getElementById("minRadius");
+  var maxRadiusInput = document.getElementById("maxRadius");
+  var nbodies = document.getElementById("number");
+  document.getElementById("twospheres").addEventListener("click", () => main(Scenarios.twoSpheresFacing()));
+  document.getElementById("random").addEventListener("click", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
+  document.getElementById("depthmovement").addEventListener("click", () => main(Scenarios.depthMovement()));
 })();
 //# sourceMappingURL=lib.js.map

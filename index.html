@@ -5,17 +5,46 @@
         <script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin defer></script>
         <script src="lib.js" defer></script>
         <style>
-            *,
             html,
             body {
                 margin: 0;
                 padding: 0;
-                /* background-color: black; */
+                background-color: black;
+            }
+            #controls {
+                padding: 1rem;
+                background-color: transparent;
+            }
+            #controls > * {
+                margin-left: 2rem;
+                margin-right: 2rem;
+                height: 100%;
+            }
+            input {
+                height: 100%;
+            }
+            * {
+                font-size: large;
+            }
+            button {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+                padding-top: 0.2rem;
+                padding-bottom: 0.2rem;
             }
         </style>
     </head>
 
     <body>
+        <div id="controls" style="display: flex; flex-direction: row; align-content: space-evenly;">
+            <button id="twospheres">Two Spheres</button>
+            <div>
+                <button id="random">Random</button>
+                <input placeholder="min radius" id="minRadius" type="number">
+                <input placeholder="max radius" id="maxRadius" type="number">
+                <input placeholder="number of bodies" id="number" type="number">
+            </div>
+        </div>
         <canvas
             style="height: 100vh; width: 100vw; margin: 0"
             id="canvas"
