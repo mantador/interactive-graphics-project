@@ -132,7 +132,7 @@
   );
   var fsVelocities = (
     /*glsl*/
-    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\nuniform float G;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\nvec3 checkAndAdjustWallCollisions(vec4 pos, vec3 vel) {\n  if (pos.x >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (pos.x <= 0.0) {\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (pos.y >= 1000.0) { // Collision on upper plane\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (pos.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (pos.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (pos.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n\n  return vel;\n}\n\nvec3 calculateCollisionVelocity(vec4 p1, vec4 p2, vec3 v1, vec3 v2) {\n  // p1.w and p2.w represent both mass and radius\n  // For proper physics, mass should scale with volume (r\xB3)\n  float m1 = p1.w * p1.w * p1.w;  // Mass of first sphere\n  float m2 = p2.w * p2.w * p2.w;  // Mass of second sphere\n  \n  // Calculate the collision normal\n  vec3 normal = normalize(p1.xyz - p2.xyz);\n  \n  // Calculate velocities along the normal\n  float v1n = dot(v1, normal);\n  float v2n = dot(v2, normal);\n  \n  // If spheres are moving apart, no collision needed\n  if (v1n - v2n > 0.0) {\n      return v1;\n  }\n  \n  // Calculate new velocity along normal using conservation of momentum\n  // and energy for a 1D collision\n  float newV1n = (m1 * v1n + m2 * v2n - m2 * (v1n - v2n)) / (m1 + m2);\n  \n  // Calculate the change in normal velocity\n  float deltaV1n = newV1n - v1n;\n  \n  // Apply the velocity change along the normal direction\n  // Keep the tangential velocity component unchanged\n  return v1 + deltaV1n * normal;\n}\n\n\nvec3 checkAndAdjustSphereCollisions(vec4 p1, vec3 v1) {\n  vec3 newVel = v1;\n  \n  for(float i = 0.0; i < MAX_ITER; i++) {\n      if (float(i) == floor(gl_FragCoord.x)) { continue; }\n      if (float(i) == dimensions.x) { break; }\n      \n      vec2 index = indexToTextureIndex(dimensions, float(i));\n      vec4 p2 = texture2D(positionTexture, index);\n      vec4 v2 = texture2D(velocityTexture, index);\n      \n      float distance = length(p1.xyz - p2.xyz);\n      float minDist = p1.w + p2.w;  // Sum of radii\n      \n      if (distance < minDist) {\n          // Collision detected\n          newVel = calculateCollisionVelocity(p1, p2, newVel, v2.xyz);\n          \n          // Add separation vector to prevent spheres from sticking\n          vec3 separationNormal = normalize(p1.xyz - p2.xyz);\n          float overlap = minDist - distance;\n          newVel += separationNormal * overlap * 0.1; // Scale factor to prevent too strong separation\n      }\n  }\n  \n  return newVel;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec3 force = vec3(0, 0, 0);\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  vec3 totalForce = vec3(0, 0, 0);\n  float m1 = pow(p1.w, 3.0);\n  \n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n    \n    vec2 index = indexToTextureIndex(dimensions, float(i));\n    \n    vec4 p2 = texture2D(positionTexture, index);\n    float m2 = pow(p2.w, 3.0);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n    \n    vec3 force = G*( (m1 * m2) / (distanc) )*diff;\n    totalForce += force;\n  }\n  \n  vec3 acc = totalForce/m1;\n  \n  vec3 deltaVel = acc*DT; // delta T\n  vec3 vel = v.xyz + deltaVel;\n  \n  vec3 newVel;\n  newVel = checkAndAdjustSphereCollisions(p1, vel);\n  newVel = checkAndAdjustWallCollisions(p1, newVel);\n  \n  gl_FragColor = vec4(newVel, 0);\n}\n"
+    "\nprecision mediump float;\n\nuniform sampler2D positionTexture;\nuniform sampler2D velocityTexture;\nuniform vec2 dimensions;\nuniform float DT;\nuniform float G;\n\nconst float MAX_ITER=1000.0;\n\nvec2 indexToTextureIndex(vec2 dimensions, float index) {\n  float y = floor(index / dimensions.x);\n  float x = mod(index, dimensions.x);\n  return (vec2(x, y) + 0.5) / dimensions;\n}\n\nvec3 reflectVelocity(vec3 vel, vec3 normal) {\n  float dotp = dot(vel.xyz, normal);\n  float norm = dot(normal, normal);\n  return vel.xyz - (2.0 * (dotp/norm) )*normal;\n}\n\nvec3 checkAndAdjustWallCollisions(vec4 pos, vec3 vel) {\n  if (pos.x >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(-1, 0, 0));\n  }\n\n  if (pos.x <= 0.0) {\n    vel = reflectVelocity(vel, vec3(1, 0, 0));\n  }\n\n  if (pos.y >= 1000.0) { // Collision on upper plane\n    vel = reflectVelocity(vel, vec3(0, -1, 0));\n  }\n  if (pos.y <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 1, 0));\n  }\n\n  if (pos.z >= 1000.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, -1));\n  }\n\n  if (pos.z <= 0.0) {\n    vel = reflectVelocity(vel, vec3(0, 0, 1));\n  }\n\n  return vel;\n}\n\nvec3 calculateCollisionVelocity(vec4 p1, vec4 p2, vec3 v1, vec3 v2) {\n  // p1.w and p2.w represent both mass and radius\n  // For proper physics, mass should scale with volume (r\xB3)\n  float m1 = p1.w * p1.w * p1.w;  // Mass of first sphere\n  float m2 = p2.w * p2.w * p2.w;  // Mass of second sphere\n  \n  // Calculate the collision normal\n  vec3 normal = normalize(p1.xyz - p2.xyz);\n  \n  // Calculate velocities along the normal\n  float v1n = dot(v1, normal);\n  float v2n = dot(v2, normal);\n  \n  // If spheres are moving apart, no collision needed\n  if (v1n - v2n > 0.0) {\n      return v1;\n  }\n  \n  // Calculate new velocity along normal using conservation of momentum\n  // and energy for a 1D collision\n  float newV1n = (m1 * v1n + m2 * v2n - m2 * (v1n - v2n)) / (m1 + m2);\n  \n  // Calculate the change in normal velocity\n  float deltaV1n = newV1n - v1n;\n  \n  // Apply the velocity change along the normal direction\n  // Keep the tangential velocity component unchanged\n  return v1 + deltaV1n * normal;\n}\n\n\nvec3 checkAndAdjustSphereCollisions(vec4 p1, vec3 v1) {\n  vec3 newVel = v1;\n  \n  for(float i = 0.0; i < MAX_ITER; i++) {\n      if (float(i) == floor(gl_FragCoord.x)) { continue; }\n      if (float(i) == dimensions.x) { break; }\n      \n      vec2 index = indexToTextureIndex(dimensions, float(i));\n      vec4 p2 = texture2D(positionTexture, index);\n      vec4 v2 = texture2D(velocityTexture, index);\n      \n      float distance = length(p1.xyz - p2.xyz);\n      float minDist = p1.w + p2.w;  // Sum of radii\n      \n      if (distance <= minDist) {\n          // Collision detected\n          newVel = calculateCollisionVelocity(p1, p2, newVel, v2.xyz);\n          \n          // Add separation vector to prevent spheres from sticking\n          vec3 separationNormal = normalize(p1.xyz - p2.xyz);\n          float overlap = minDist - distance;\n          newVel += separationNormal * overlap * 0.1; // Scale factor to prevent too strong separation\n      }\n  }\n  \n  return newVel;\n}\n\n\nvoid main() {\n  vec2 texcoord = gl_FragCoord.xy / dimensions;\n  vec4 p1 = texture2D(positionTexture, texcoord);\n  vec4 v = texture2D(velocityTexture, texcoord);  \n  \n  vec3 totalForce = vec3(0, 0, 0);\n  float m1 = pow(p1.w, 3.0);\n  \n  for(float i = 0.0; i < MAX_ITER; i++) {\n    if (float(i) == floor(gl_FragCoord.x)) { continue; }\n    if (float(i) == dimensions.x) { break; }\n    \n    vec2 index = indexToTextureIndex(dimensions, float(i));\n    \n    vec4 p2 = texture2D(positionTexture, index);\n    float m2 = pow(p2.w, 3.0);\n    vec3 diff = p2.xyz - p1.xyz;\n    float distanc = pow(length(diff), 3.0);\n    \n    vec3 force = G*( (m1 * m2) / (distanc) )*diff;\n\n    totalForce += force;\n  }\n  vec3 acc = totalForce/m1;\n  \n  vec3 deltaVel = acc*DT;\n  vec3 vel = v.xyz + deltaVel;\n  \n  vec3 newVel;\n  newVel = checkAndAdjustSphereCollisions(p1, vel);\n  newVel = checkAndAdjustWallCollisions(p1, newVel);\n  \n  gl_FragColor = vec4(newVel, 0);\n}\n"
   );
   var vsPositions = (
     /*glsl*/
@@ -363,7 +363,7 @@
   }
 
   // lib/graphics.js
-  function initGraphicsProgram(gl, spheres) {
+  function initGraphicsProgram(gl, spheres, viewProjectionMatrix) {
     const vs = (
       /*glsl*/
       "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n  uniform vec3 cameraPosition;\n  \n  varying vec3 vPos;\n  varying float vRad;\n  varying vec3 cameraPos;\n  \n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    vPos = position.xyz;\n    vRad = position.w;\n    cameraPos = cameraPosition;\n    \n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n    \n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = position.w * perspectiveScale;\n  }\n  "
@@ -387,19 +387,12 @@
     if (gl.canvas instanceof OffscreenCanvas) {
       throw new Error("Nope...");
     }
-    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 3e3);
-    var cameraPosition = Constants.cameraPosition;
-    var target = Constants.cameraTarget;
-    var up = [0, 1, 0];
-    var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
-    var viewMatrix = m4.inverse(cameraMatrix);
-    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
     gl.uniformMatrix4fv(
       matrixLoc,
       false,
       viewProjectionMatrix
     );
+    const cameraPosition = Constants.cameraPosition;
     gl.uniform3f(cameraLoc, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
     const pBuffer = gl.createBuffer();
     let ids = new Array(spheres.length).fill(0).map((_, i) => i);
@@ -414,15 +407,12 @@
         gl.useProgram(program);
         gl.enable(gl.DEPTH_TEST);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.bindBuffer(gl.ARRAY_BUFFER, pBuffer);
         gl.enableVertexAttribArray(indexLoc);
         gl.vertexAttribPointer(indexLoc, 1, gl.FLOAT, false, 0, 0);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, dataBuffer.position.outputTexture);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.POINTS, 0, ids.length);
       }
     };
@@ -440,13 +430,90 @@
         spheres.push(Sphere.random(m, M));
       }
       return spheres;
-    },
-    depthMovement: () => {
-      return [
-        new Sphere({ center: { x: 500, y: 500, z: 500 }, velocity: { x: 0, y: 0, z: 10 }, mass: 80 })
-      ];
     }
   };
+
+  // lib/box.js
+  var BoxDrawer = class {
+    constructor(gl) {
+      this.gl = gl;
+      this.prog = createWebglProgram(gl, boxVS, boxFS);
+      this.mvp = gl.getUniformLocation(this.prog, "mvp");
+      this.vertPos = gl.getAttribLocation(this.prog, "pos");
+      this.vertbuffer = gl.createBuffer();
+      var pos = [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1e3,
+        0,
+        1e3,
+        0,
+        0,
+        1e3,
+        1e3,
+        1e3,
+        0,
+        0,
+        1e3,
+        0,
+        1e3,
+        1e3,
+        1e3,
+        0,
+        1e3,
+        1e3,
+        1e3
+      ];
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.vertbuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+      this.linebuffer = gl.createBuffer();
+      var line = [
+        0,
+        1,
+        1,
+        3,
+        3,
+        2,
+        2,
+        0,
+        4,
+        5,
+        5,
+        7,
+        7,
+        6,
+        6,
+        4,
+        0,
+        4,
+        1,
+        5,
+        3,
+        7,
+        2,
+        6
+      ];
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.linebuffer);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(line), gl.STATIC_DRAW);
+    }
+    draw(trans) {
+      this.gl.useProgram(this.prog);
+      this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+      this.gl.enable(this.gl.DEPTH_TEST);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+      this.gl.uniformMatrix4fv(this.mvp, false, trans);
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertbuffer);
+      this.gl.vertexAttribPointer(this.vertPos, 3, this.gl.FLOAT, false, 0, 0);
+      this.gl.enableVertexAttribArray(this.vertPos);
+      this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.linebuffer);
+      this.gl.drawElements(this.gl.LINES, 24, this.gl.UNSIGNED_BYTE, 0);
+    }
+  };
+  var boxVS = "\n	attribute vec3 pos;\n	uniform mat4 mvp;\n	void main()\n	{\n		gl_Position = mvp * vec4(pos,1);\n	}\n";
+  var boxFS = "\n	precision mediump float;\n	void main()\n	{\n		gl_FragColor = vec4(1,1,1,1);\n	}\n";
 
   // lib/main.js
   function main(spheres) {
@@ -455,12 +522,24 @@
     if (!gl) throw new Error("WebGL not enabled!");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 3e3);
+    var cameraPosition = Constants.cameraPosition;
+    var target = Constants.cameraTarget;
+    var up = [0, 1, 0];
+    var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
+    var viewMatrix = m4.inverse(cameraMatrix);
+    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
     const counter = new Counter();
     const compute = initComputingProgram(gl, spheres);
-    const render = initGraphicsProgram(gl, spheres);
+    const render = initGraphicsProgram(gl, spheres, viewProjectionMatrix);
+    const box = new BoxDrawer(gl);
     function renderStep() {
       compute.computeVelocities(compute.dataBuffers[counter.count]);
       compute.computePositions(compute.dataBuffers[counter.count]);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      box.draw(viewProjectionMatrix);
       render.render(compute.dataBuffers[counter.count]);
       counter.inc();
       requestAnimationFrame(renderStep);
@@ -476,6 +555,6 @@
   var nbodies = document.getElementById("number");
   document.getElementById("twospheres").addEventListener("click", () => main(Scenarios.twoSpheresFacing()));
   document.getElementById("random").addEventListener("click", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
-  document.getElementById("depthmovement").addEventListener("click", () => main(Scenarios.depthMovement()));
+  window.addEventListener("load", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
 })();
 //# sourceMappingURL=lib.js.map
