@@ -124,6 +124,30 @@
     resizeCanvasToDisplaySize(canvas);
     return canvas;
   }
+  function MatrixStorage(gl) {
+    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 3e3);
+    var target = Constants.cameraTarget;
+    var up = [0, 1, 0];
+    return {
+      getMatrix: (rotx = 0, roty = 0) => {
+        rotx = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, rotx));
+        rotx = rotx % (2 * Math.PI);
+        var rotXMatrix = m4.xRotation(rotx);
+        var rotYMatrix = m4.yRotation(roty);
+        var cameraRotation = m4.multiply(rotYMatrix, rotXMatrix);
+        var c = Constants.cameraPosition;
+        var targetDiff = m4.subtractVectors(c, target);
+        var rotatedOffset = m4.transformVector(cameraRotation, [...targetDiff, 1]);
+        var cameraPosition = m4.addVectors(target, rotatedOffset);
+        c = [cameraPosition[0], cameraPosition[1], cameraPosition[2]];
+        var cameraMatrix = m4.lookAt(c, target, up, m4.identity());
+        var viewMatrix = m4.inverse(cameraMatrix);
+        var perspective = m4.multiply(projectionMatrix, viewMatrix);
+        return perspective;
+      }
+    };
+  }
 
   // lib/computing.js
   var vsVelocities = (
@@ -363,14 +387,14 @@
   }
 
   // lib/graphics.js
-  function initGraphicsProgram(gl, spheres, viewProjectionMatrix) {
+  function initGraphicsProgram(gl, spheres) {
     const vs = (
       /*glsl*/
-      "\n  const mediump float;\n  attribute float index;\n  varying vec3 normal;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n  uniform vec3 cameraPosition;\n  \n  varying vec3 vPos;\n  varying float vRad;\n  varying vec3 cameraPos;\n  \n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    vPos = position.xyz;\n    vRad = position.w;\n    cameraPos = cameraPosition;\n    \n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n    \n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = position.w * perspectiveScale;\n  }\n  "
+      "\n  const mediump float;\n  attribute float index;\n  uniform sampler2D positionTexture;\n  uniform vec2 dimensions;\n  uniform mat4 matrix;\n  uniform vec3 cameraPosition;\n  \n  varying vec3 vPos;\n  varying float vRad;\n  varying vec3 cameraPos;\n  \n  vec2 indexToTextureIndex(vec2 dimensions, float index) {\n    float y = floor(index / dimensions.x);\n    float x = mod(index, dimensions.x);\n    return (vec2(x, y) + 0.5) / dimensions;\n  }\n\n  void main() {\n    vec4 position = texture2D(positionTexture, indexToTextureIndex(dimensions, index));\n    vPos = position.xyz;\n    vRad = position.w;\n    cameraPos = cameraPosition;\n    \n    gl_Position = matrix*vec4(position.xyz, 1.0);\n    vec4 viewSpace = vec4(position.xyz - cameraPosition, 1.0);\n    float distanceFromCamera = length(viewSpace.xyz);\n    \n    float perspectiveScale = 1000.0 / distanceFromCamera;\n    gl_PointSize = position.w * perspectiveScale;\n  }\n  "
     );
     const fs = (
       /*glsl*/
-      "\n  precision mediump float;\n\n  varying vec3 vPos;\n  varying float vRad;\n  varying vec3 cameraPos;\n  \n  uniform vec3 lightPos;\n\n  void main() {\n    vec2 centerToPixel = 2.0 * gl_PointCoord - 1.0;\n    float r2 = dot(centerToPixel, centerToPixel);\n    \n    if (r2 > 1.0) {\n        discard;\n      }\n      \n    float z = sqrt(1.0 - r2);\n    vec3 normal = normalize(vec3(centerToPixel.x, -centerToPixel.y, z));\n\n    vec3 fragPos = vPos + vRad * normal;\n    vec3 lightDir = normalize(lightPos - fragPos);\n    vec3 viewDir = normalize(cameraPos - fragPos);\n    vec3 halfDir = normalize(lightDir + viewDir);\n    \n    float ambient = 0.2;\n    \n    float diff = max(dot(normal, lightDir), 0.0);\n    \n    float spec = pow(max(dot(normal, halfDir), 0.0), 2.0);\n    \n    vec3 sphereColor = vec3(1.0, 1.0, 1.0);\n    vec3 finalColor = sphereColor * (ambient + diff + 0.5 * spec);\n\n    gl_FragColor = vec4(finalColor, 1.0);\n  }\n  "
+      "\n  precision mediump float;\n\n  varying vec3 vPos;\n  varying float vRad;\n  varying vec3 cameraPos;\n  \n  uniform vec3 lightPos;\n\n  void main() {\n    vec2 centerToPixel = 2.0 * gl_PointCoord - 1.0;\n    float r_2 = dot(centerToPixel, centerToPixel);\n    \n    if (r_2 > 1.0) {\n        discard;\n      }\n      \n    float z = sqrt(1.0 - r_2);\n    vec3 normal = normalize(vec3(centerToPixel.x, -centerToPixel.y, z));\n\n    vec3 fragPos = vPos + vRad * normal;\n    vec3 lightDir = normalize(lightPos - fragPos);\n    vec3 viewDir = normalize(cameraPos - fragPos);\n    vec3 halfDir = normalize(lightDir + viewDir);\n    \n    float ambient = 0.2;\n    \n    float diff = max(dot(normal, lightDir), 0.0);\n    \n    float spec = pow(max(dot(normal, halfDir), 0.0), 2.0);\n    \n    vec3 sphereColor = vec3(1.0, 1.0, 1.0);\n    vec3 finalColor = sphereColor * (ambient + diff + 0.5 * spec);\n\n    gl_FragColor = vec4(finalColor, 1.0);\n  }\n  "
     );
     const program = createWebglProgram(gl, vs, fs);
     gl.useProgram(program);
@@ -387,11 +411,6 @@
     if (gl.canvas instanceof OffscreenCanvas) {
       throw new Error("Nope...");
     }
-    gl.uniformMatrix4fv(
-      matrixLoc,
-      false,
-      viewProjectionMatrix
-    );
     const cameraPosition = Constants.cameraPosition;
     gl.uniform3f(cameraLoc, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
     const pBuffer = gl.createBuffer();
@@ -403,8 +422,13 @@
       gl.STATIC_DRAW
     );
     return {
-      render: (dataBuffer) => {
+      render: (dataBuffer, matrix) => {
         gl.useProgram(program);
+        gl.uniformMatrix4fv(
+          matrixLoc,
+          false,
+          matrix
+        );
         gl.enable(gl.DEPTH_TEST);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.bindBuffer(gl.ARRAY_BUFFER, pBuffer);
@@ -522,29 +546,38 @@
     if (!gl) throw new Error("WebGL not enabled!");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    var projectionMatrix = m4.perspective(60 * Math.PI / 180, aspect, 1, 3e3);
-    var cameraPosition = Constants.cameraPosition;
-    var target = Constants.cameraTarget;
-    var up = [0, 1, 0];
-    var cameraMatrix = m4.lookAt(cameraPosition, target, up, m4.identity());
-    var viewMatrix = m4.inverse(cameraMatrix);
-    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
     const counter = new Counter();
+    const matrixStorage = MatrixStorage(gl);
     const compute = initComputingProgram(gl, spheres);
-    const render = initGraphicsProgram(gl, spheres, viewProjectionMatrix);
+    const render = initGraphicsProgram(gl, spheres);
     const box = new BoxDrawer(gl);
+    var rotx = 0, roty = 0;
     function renderStep() {
+      const matrix = matrixStorage.getMatrix(rotx, roty);
       compute.computeVelocities(compute.dataBuffers[counter.count]);
       compute.computePositions(compute.dataBuffers[counter.count]);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      box.draw(viewProjectionMatrix);
-      render.render(compute.dataBuffers[counter.count]);
+      box.draw(matrix);
+      render.render(compute.dataBuffers[counter.count], matrix);
       counter.inc();
       requestAnimationFrame(renderStep);
     }
     requestAnimationFrame(renderStep);
+    canvas.onmousedown = function(event) {
+      var cx = event.clientX;
+      var cy = event.clientY;
+      console.log(cx);
+      canvas.onmousemove = function(event2) {
+        roty += (cx - event2.clientX) / canvas.width * 5;
+        rotx += (cy - event2.clientY) / canvas.height * 5;
+        cx = event2.clientX;
+        cy = event2.clientY;
+      };
+    };
+    canvas.onmouseup = canvas.onmouseleave = function() {
+      canvas.onmousemove = null;
+    };
   }
   function Counter() {
     this.count = 0;
