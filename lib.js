@@ -583,6 +583,6 @@
   var maxRadiusInput = document.getElementById("maxRadius");
   var nbodies = document.getElementById("number");
   document.getElementById("random").addEventListener("click", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
-  window.addEventListener("load", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
+  window.addEventListener("load", () => main(Scenarios.random(Number(40), Number(40), Number(20))));
 })();
 //# sourceMappingURL=lib.js.map
