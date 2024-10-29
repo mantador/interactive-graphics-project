@@ -444,10 +444,6 @@
 
   // lib/scenarios.js
   var Scenarios = {
-    twoSpheresFacing: () => [
-      new Sphere({ center: { x: 200, y: 300, z: 500 }, velocity: { x: 3, y: 3, z: 0 }, mass: 20 }),
-      new Sphere({ center: { x: 800, y: 300, z: 500 }, velocity: { x: -3, y: 0, z: 0 }, mass: 80 })
-    ],
     random: (m, M, count) => {
       const spheres = [];
       for (let i = 0; i < count; i++) {
@@ -553,9 +549,9 @@
     const box = new BoxDrawer(gl);
     var rotx = 0, roty = 0;
     function renderStep() {
-      const matrix = matrixStorage.getMatrix(rotx, roty);
       compute.computeVelocities(compute.dataBuffers[counter.count]);
       compute.computePositions(compute.dataBuffers[counter.count]);
+      const matrix = matrixStorage.getMatrix(rotx, roty);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       box.draw(matrix);
@@ -586,7 +582,6 @@
   var minRadiusInput = document.getElementById("minRadius");
   var maxRadiusInput = document.getElementById("maxRadius");
   var nbodies = document.getElementById("number");
-  document.getElementById("twospheres").addEventListener("click", () => main(Scenarios.twoSpheresFacing()));
   document.getElementById("random").addEventListener("click", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
   window.addEventListener("load", () => main(Scenarios.random(Number(minRadiusInput.value), Number(maxRadiusInput.value), Number(nbodies.value))));
 })();
